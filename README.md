@@ -67,6 +67,64 @@ Environment values are in `.env`:
 
 Default local mapping uses port `5433` to avoid conflicts with an existing local Postgres on `5432`.
 
+## Authentication with Clerk
+
+This project uses [Clerk](https://clerk.com/) for authentication and authorization.
+
+### Setup
+
+Add your Clerk credentials to `.env`:
+
+```env
+CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+```
+
+### Usage
+
+#### Protecting Routes
+
+Use the `ClerkGuard` to protect routes:
+
+```typescript
+import { Controller, Get, UseGuards } from '@nestjs/common';
+import { ClerkGuard } from './auth/guards/clerk.guard';
+import { CurrentUser } from './auth/decorators/current-user.decorator';
+
+@Controller('protected')
+export class MyController {
+  @Get()
+  @UseGuards(ClerkGuard)
+  protectedRoute(@CurrentUser() auth: AuthObject) {
+    return { userId: (auth as any).userId };
+  }
+}
+```
+
+#### Getting Current User
+
+Use the `@CurrentUser()` decorator to access authenticated user data:
+
+```typescript
+@Get('me')
+@UseGuards(ClerkGuard)
+getCurrentUser(@CurrentUser() auth: AuthObject) {
+  return {
+    userId: (auth as any).userId,
+    sessionId: (auth as any).sessionId,
+  };
+}
+```
+
+### Testing Protected Routes
+
+Send requests with a Bearer token in the `Authorization` header:
+
+```bash
+curl http://localhost:3000/profile \
+  -H "Authorization: Bearer <clerk_jwt_token>"
+```
+
 ## Compile and run the project
 
 ```bash
