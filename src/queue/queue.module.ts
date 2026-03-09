@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
 import { ConfigService } from '@nestjs/config';
+import { ResearchMainProcessor } from './processors/research-main.processor';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { ConfigService } from '@nestjs/config';
       },
     }),
   ],
+  providers: [ResearchMainProcessor],
   exports: [BullModule],
 })
 export class QueueModule {}
