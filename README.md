@@ -31,6 +31,42 @@
 $ pnpm install
 ```
 
+## Local PostgreSQL (Docker) + Prisma Setup
+
+1. Start PostgreSQL (latest image) with Docker:
+
+```bash
+$ pnpm run db:up
+```
+
+2. Generate Prisma Client:
+
+```bash
+$ pnpm run prisma:generate
+```
+
+3. Run the first migration:
+
+```bash
+$ pnpm run prisma:migrate -- --name init
+```
+
+4. (Optional) Open Prisma Studio:
+
+```bash
+$ pnpm run prisma:studio
+```
+
+Environment values are in `.env`:
+
+- `POSTGRES_DB`
+- `POSTGRES_USER`
+- `POSTGRES_PASSWORD`
+- `POSTGRES_PORT`
+- `DATABASE_URL`
+
+Default local mapping uses port `5433` to avoid conflicts with an existing local Postgres on `5432`.
+
 ## Compile and run the project
 
 ```bash
