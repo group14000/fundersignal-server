@@ -3,11 +3,14 @@ import { BullModule } from '@nestjs/bull';
 import { ConfigService } from '@nestjs/config';
 import { ResearchMainProcessor } from './processors/research-main.processor';
 import { ScraperProcessor } from './processors/scraper.processor';
+import { AnalysisProcessor } from './processors/analysis.processor';
 import { PrismaModule } from '../prisma/prisma.module';
+import { AnalysisModule } from '../analysis/analysis.module';
 
 @Module({
   imports: [
     PrismaModule,
+    AnalysisModule,
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
@@ -69,7 +72,7 @@ import { PrismaModule } from '../prisma/prisma.module';
       },
     }),
   ],
-  providers: [ResearchMainProcessor, ScraperProcessor],
+  providers: [ResearchMainProcessor, ScraperProcessor, AnalysisProcessor],
   exports: [BullModule],
 })
 export class QueueModule {}

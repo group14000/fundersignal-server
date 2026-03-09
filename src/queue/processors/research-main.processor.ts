@@ -23,7 +23,7 @@ export class ResearchMainProcessor {
   @Process('start-research')
   async handleStartResearch(job: Job) {
     const ideaId = job.data?.ideaId;
-    
+
     this.logger.log(`Processing research job ${job.id}`, { ideaId });
     this.logger.debug({ payload: job.data });
 
@@ -117,7 +117,10 @@ export class ResearchMainProcessor {
           },
         });
       } catch (updateError) {
-        this.logger.error('Failed to update idea/job progress on error', updateError);
+        this.logger.error(
+          'Failed to update idea/job progress on error',
+          updateError,
+        );
       }
 
       throw error;

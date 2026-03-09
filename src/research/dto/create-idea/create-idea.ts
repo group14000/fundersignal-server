@@ -1,4 +1,10 @@
-import { IsString, IsOptional, MaxLength, MinLength, IsArray } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  MaxLength,
+  MinLength,
+  IsArray,
+} from 'class-validator';
 
 export class CreateIdeaDto {
   @IsString()

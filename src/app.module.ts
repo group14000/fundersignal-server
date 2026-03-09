@@ -9,7 +9,14 @@ import { QueueModule } from './queue/queue.module';
 import { ResearchModule } from './research/research.module';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule, AuthModule, OpenrouterModule, QueueModule, ResearchModule],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    PrismaModule,
+    AuthModule,
+    OpenrouterModule,
+    QueueModule,
+    ResearchModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

@@ -1,9 +1,5 @@
 import { Logger } from '@nestjs/common';
-import {
-  OnQueueFailed,
-  Process,
-  Processor,
-} from '@nestjs/bull';
+import { OnQueueFailed, Process, Processor } from '@nestjs/bull';
 import { Job } from 'bullmq';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -58,19 +54,21 @@ export class ScraperProcessor {
 
       // Update JobProgress with collected data count
       if (jobId) {
-        await this.prisma.jobProgress.update(
-          {
-            where: { job_id: jobId },
-            data: {
-              data_points_collected: {
-                increment: savedRecords.length,
+        await this.prisma.jobProgress
+          .update(
+            {
+              where: { job_id: jobId },
+              data: {
+                data_points_collected: {
+                  increment: savedRecords.length,
+                },
               },
             },
-          },
-          // Use try-catch to handle in case JobProgress doesn't exist yet
-        ).catch((error) => {
-          this.logger.warn(`Could not update JobProgress: ${error.message}`);
-        });
+            // Use try-catch to handle in case JobProgress doesn't exist yet
+          )
+          .catch((error) => {
+            this.logger.warn(`Could not update JobProgress: ${error.message}`);
+          });
       }
 
       this.logger.log(
@@ -132,7 +130,8 @@ export class ScraperProcessor {
 
     return Array.from({ length: config.count }, (_, i) => ({
       title: `${keywords[0] || title} discussion/article ${i + 1}`,
-      content: `This is mock content about ${keywords.join(', ')} from ${config.source}. ` +
+      content:
+        `This is mock content about ${keywords.join(', ')} from ${config.source}. ` +
         `It discusses potential use cases, benefits, and challenges. ` +
         `The original discussion/post is indexed here for reference.`,
       author: `user_${Math.random().toString(36).substr(2, 9)}`,
