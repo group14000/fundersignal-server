@@ -125,6 +125,83 @@ curl http://localhost:3000/profile \
   -H "Authorization: Bearer <clerk_jwt_token>"
 ```
 
+## AI Integration with OpenRouter
+
+This project integrates [OpenRouter](https://openrouter.ai/) for AI-powered features, providing access to 300+ language models through a unified API.
+
+### Setup
+
+Add your OpenRouter API key to `.env`:
+
+```env
+OPENROUTER_API_KEY=sk-or-v1-...
+
+# Optional custom configurations
+APP_URL=http://localhost:5000
+APP_NAME=FounderSignal
+```
+
+### Default Model
+
+The application uses `stepfun/step-3.5-flash:free` as the default model, which is a free, fast model suitable for development and testing.
+
+### Usage
+
+#### Using OpenRouter Service
+
+Inject the `OpenrouterService` into your controllers or services:
+
+```typescript
+import { OpenrouterService } from './openrouter/openrouter.service';
+
+@Controller('ai')
+export class AiController {
+  constructor(private readonly openrouterService: OpenrouterService) {}
+
+  @Post('chat')
+  async chat(@Body() body: { prompt: string }) {
+    const response = await this.openrouterService.sendPrompt(body.prompt);
+    return { response };
+  }
+
+  @Post('advanced')
+  async advanced(@Body() body: { messages: any[]; model?: string }) {
+    const completion = await this.openrouterService.sendChatCompletion(
+      body.messages,
+      body.model,
+    );
+    return completion;
+  }
+}
+```
+
+#### Available Methods
+
+- `sendPrompt(prompt: string, model?: string)` - Send a simple text prompt
+- `sendChatCompletion(messages, model?, stream?)` - Send chat messages with full control
+- `getClient()` - Get the OpenRouter client for advanced usage
+
+### Testing AI Endpoints
+
+Example using the `/ai/chat` endpoint:
+
+```bash
+curl -X POST http://localhost:5000/ai/chat \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Explain quantum computing in simple terms"}'
+```
+
+With a custom model:
+
+```bash
+curl -X POST http://localhost:5000/ai/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "Write a haiku about programming",
+    "model": "anthropic/claude-3-haiku"
+  }'
+```
+
 ## Compile and run the project
 
 ```bash
