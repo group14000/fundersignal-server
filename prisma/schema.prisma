@@ -17,3 +17,152 @@ model User {
   email     String   @unique
   createdAt DateTime @default(now())
 }
+
+// Startup ideas submitted by users
+model Idea {
+  id                     String   @id @default(cuid())
+  user_id                String?
+  title                  String
+  description            String   @db.Text
+  industry               String?
+  target_market          String?
+  job_id                 String?  @unique // Links to BullMQ job ID
+  status                 String   @default("PENDING") // PENDING, SCRAPING, ANALYZING, GENERATING_REPORT, COMPLETED, FAILED
+  demand_score           Float?
+  competitor_count       Int?
+  problem_count          Int?
+  research_started_at    DateTime?
+  research_completed_at  DateTime?
+  created_at             DateTime @default(now())
+  updated_at             DateTime @updatedAt
+  
+  research_data          ResearchData[]
+  job_progress           JobProgress?
+  insights               Insight?
+  competitors            Competitor[]
+  problems               Problem[]
+  research_leads         ResearchLead[]
+  
+  @@index([user_id])
+  @@index([status])
+  @@index([job_id])
+}
+
+// Raw data collected from various sources
+model ResearchData {
+  id               String   @id @default(cuid())
+  idea_id          String
+  idea             Idea     @relation(fields: [idea_id], references: [id], onDelete: Cascade)
+  source_type      String   // 'reddit', 'hackernews', 'producthunt', 'google', 'twitter'
+  source_name      String?
+  source_url       String?
+  data_type        String   // 'discussion', 'post', 'comment', 'article'
+  title            String?
+  content          String   @db.Text
+  author           String?
+  score            Int?
+  comments_count   Int?
+  upvotes          Int?
+  shares           Int?
+  collected_at     DateTime @default(now())
+  created_at       DateTime @default(now())
+  processed        Boolean  @default(false)
+  
+  @@index([idea_id])
+  @@index([source_type])
+  @@index([processed])
+}
+
+// Competitors identified from research
+model Competitor {
+  id                String   @id @default(cuid())
+  idea_id           String
+  idea              Idea     @relation(fields: [idea_id], references: [id], onDelete: Cascade)
+  name              String
+  website           String?
+  description       String?  @db.Text
+  funding_status    String?
+  employee_count    Int?
+  market_position   String?
+  relevance_score   Float?
+  threat_level      String   @default("direct") // 'direct', 'indirect', 'adjacent'
+  source_id         String?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  
+  @@index([idea_id])
+}
+
+// Problems identified from research
+model Problem {
+  id                String   @id @default(cuid())
+  idea_id           String
+  idea              Idea     @relation(fields: [idea_id], references: [id], onDelete: Cascade)
+  title             String
+  description       String?  @db.Text
+  severity          String   // 'critical', 'high', 'medium', 'low'
+  mention_count     Int      @default(0)
+  validation_score  Float?   // 0-10 based on research frequency
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  
+  @@index([idea_id])
+}
+
+// Job progress tracking
+model JobProgress {
+  id                     String   @id @default(cuid())
+  job_id                 String   @unique
+  idea_id                String   @unique
+  idea                   Idea     @relation(fields: [idea_id], references: [id], onDelete: Cascade)
+  current_status         String
+  progress_percentage    Int      @default(0)
+  current_task           String?
+  log_entries            String   @db.Text @default("[]") // JSON array stored as text
+  data_points_collected  Int      @default(0)
+  competitors_found      Int      @default(0)
+  problems_identified    Int      @default(0)
+  started_at             DateTime @default(now())
+  completed_at           DateTime?
+  
+  @@index([job_id])
+  @@index([idea_id])
+}
+
+// Final AI-generated insights
+model Insight {
+  id                   String   @id @default(cuid())
+  idea_id              String   @unique
+  idea                 Idea     @relation(fields: [idea_id], references: [id], onDelete: Cascade)
+  job_id               String?
+  demand_score         Float?   // 0-10
+  opportunity_summary  String?  @db.Text
+  market_readiness     String?  // 'hot', 'warming', 'cold'
+  key_problems         String   @db.Text @default("[]") // JSON array
+  competitor_analysis  String   @db.Text @default("[]") // JSON object
+  opportunity_gaps     String   @db.Text @default("[]") // JSON array
+  user_signals         String   @db.Text @default("[]") // JSON object
+  model_used           String?
+  tokens_used          Int?
+  generation_time_ms   Int?
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+  
+  @@index([idea_id])
+}
+
+// Research leads/contacts
+model ResearchLead {
+  id                String   @id @default(cuid())
+  idea_id           String
+  idea              Idea     @relation(fields: [idea_id], references: [id], onDelete: Cascade)
+  entity_type       String   // 'person', 'company', 'community'
+  name              String
+  email             String?
+  website           String?
+  relevance         String   // 'potential_customer', 'competitor', 'partner', 'investor'
+  confidence_score  Float?
+  created_at        DateTime @default(now())
+  
+  @@index([idea_id])
+}
