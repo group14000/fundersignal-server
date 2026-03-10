@@ -1,11 +1,15 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ResearchService } from './research.service';
+import { QueryGenerationService } from './query-generation.service';
 import { StartResearchDto } from './dto/start-research/start-research';
 import { CreateIdeaDto } from './dto/create-idea/create-idea';
 
 @Controller('research')
 export class ResearchController {
-  constructor(private readonly researchService: ResearchService) {}
+  constructor(
+    private readonly researchService: ResearchService,
+    private readonly queryGeneration: QueryGenerationService,
+  ) {}
 
   @Post('jobs')
   startResearch(@Body() body: StartResearchDto) {
@@ -30,5 +34,24 @@ export class ResearchController {
   @Post('test/pipeline')
   async runFullPipelineTest(@Body() body: CreateIdeaDto) {
     return this.researchService.runFullPipelineTest(body);
+  }
+
+  @Post('test/queries')
+  async testQueryGeneration(@Body() body: CreateIdeaDto) {
+    const queries = await this.queryGeneration.generateQueries({
+      title: body.title,
+      description: body.description,
+      industry: body.industry,
+    });
+
+    return {
+      idea: {
+        title: body.title,
+        description: body.description,
+        industry: body.industry,
+      },
+      generatedQueries: queries,
+      queryCount: queries.length,
+    };
   }
 }

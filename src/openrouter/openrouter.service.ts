@@ -5,7 +5,7 @@ import { OpenRouter } from '@openrouter/sdk';
 @Injectable()
 export class OpenrouterService {
   private readonly openRouter: OpenRouter;
-  private readonly defaultModel = 'stepfun/step-3.5-flash:free';
+  private readonly defaultModel = 'z-ai/glm-4.5-air:free';
   private readonly defaultHeaders: Record<string, string>;
 
   constructor(private configService: ConfigService) {
@@ -42,12 +42,16 @@ export class OpenrouterService {
     model?: string,
     stream = false,
   ) {
+    const selectedModel = model || this.defaultModel;
+    
+    // OpenRouter SDK expects chatGenerationParams with model inside
     const completion = await this.openRouter.chat.send(
       {
-        messages,
-        ...(model && { model: model }),
-        ...(!model && { model: this.defaultModel }),
-        ...(stream && { stream }),
+        chatGenerationParams: {
+          model: selectedModel,
+          messages: messages,
+          ...(stream && { stream }),
+        },
       } as any,
       {
         fetchOptions: {
@@ -85,3 +89,4 @@ export class OpenrouterService {
     return this.openRouter;
   }
 }
+
