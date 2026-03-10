@@ -86,7 +86,7 @@ export class SearchService {
    * Search HackerNews for articles related to query
    * Uses Algolia API which indexes HackerNews content
    */
-  private async searchHackerNews(query: string): Promise<SearchResult[]> {
+  async searchHackerNews(query: string): Promise<SearchResult[]> {
     const url = new URL('https://hn.algolia.com/api/v1/search');
     url.searchParams.append('query', query);
     url.searchParams.append('numericFilters', 'points>10'); // Filter for quality posts
@@ -127,7 +127,7 @@ export class SearchService {
   /**
    * Search Reddit for discussions related to query
    */
-  private async searchReddit(query: string): Promise<SearchResult[]> {
+  async searchReddit(query: string): Promise<SearchResult[]> {
     const url = new URL('https://www.reddit.com/search.json');
     url.searchParams.append('q', query);
     url.searchParams.append('type', 'link');

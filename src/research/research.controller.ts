@@ -2,9 +2,14 @@ import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ResearchService } from './research.service';
 import { QueryGenerationService } from './query-generation.service';
 import { ScraperService } from './scraper.service';
+import { ResearchDataService } from './research-data.service';
 import { StartResearchDto } from './dto/start-research/start-research';
 import { CreateIdeaDto } from './dto/create-idea/create-idea';
 import { TestScraperDto } from './dto/test-scraper/test-scraper.dto';
+import {
+  PrepareResearchDatasetDto,
+  StoreResearchDataDto,
+} from './dto/test-research-data/store-research-data.dto';
 
 @Controller('research')
 export class ResearchController {
@@ -12,6 +17,7 @@ export class ResearchController {
     private readonly researchService: ResearchService,
     private readonly queryGeneration: QueryGenerationService,
     private readonly scraperService: ScraperService,
+    private readonly researchDataService: ResearchDataService,
   ) {}
 
   @Post('jobs')
@@ -68,6 +74,27 @@ export class ResearchController {
       successCount: scrapedContent.length,
       results: scrapedContent,
     };
+  }
+
+  @Post('test/research-data/store')
+  async testStoreResearchData(@Body() body: StoreResearchDataDto) {
+    const summary = await this.researchDataService.storeScrapedContent(
+      body.ideaId,
+      body.entries,
+    );
+
+    return {
+      ideaId: body.ideaId,
+      ...summary,
+    };
+  }
+
+  @Post('test/research-data/prepare')
+  async testPrepareResearchDataset(@Body() body: PrepareResearchDatasetDto) {
+    return this.researchDataService.prepareDatasetForAnalysis(
+      body.ideaId,
+      body.limit,
+    );
   }
 }
 

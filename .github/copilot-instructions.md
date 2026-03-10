@@ -33,6 +33,9 @@ src/
 ├── research/                     # Core startup research features
 │   ├── research.service.ts       # Job envelope & orchestration
 │   ├── query-generation.service.ts (AI-powered search queries)
+│   ├── search-orchestrator.service.ts (multi-source result aggregation)
+│   ├── scraper.service.ts        (URL content extraction)
+│   ├── research-data.service.ts  (storage + dataset preparation)
 │   ├── research.controller.ts    # REST endpoints
 ├── analysis/                     # Market analysis & insights
 │   ├── analysis.service.ts       # LLM-based analysis
@@ -66,7 +69,7 @@ pnpm run db:up
 pnpm run prisma:generate
 
 # 4. Run initial migration
-pnpm run prisma:migrate -- --name init
+pnpm prisma:migrate -- --name init
 
 # 5. Start development server
 pnpm start:dev
@@ -209,6 +212,9 @@ POST   /research/ideas             # Create idea + auto-enqueue analysis
 GET    /research/ideas/:ideaId     # Retrieve idea with insights
 POST   /research/test/pipeline     # Test full pipeline (dev)
 POST   /research/test/queries      # Test AI query generation (dev)
+POST   /research/test/scraper      # Test URL content extraction (dev)
+POST   /research/test/research-data/store    # Test data storage + dedup (dev)
+POST   /research/test/research-data/prepare  # Test analysis dataset prep (dev)
 ```
 
 ### Response Format
@@ -268,6 +274,12 @@ catch (error) {
 3. **Complete/Fail** - Job updates tracked in `job_progress` table
 4. **Retrieve** - Client polls via `GET /research/jobs/:id`
 
+### Queue Retry/Backoff Defaults
+- `research:main` - 3 attempts, exponential backoff (5s), remove complete after 1 hour
+- `scraping:tasks` - 5 attempts, exponential backoff (2s)
+- `analysis:tasks` - 3 attempts, exponential backoff (1s)
+- `reports:generation` - 2 attempts, fixed backoff (3s)
+
 ### Processor Pattern
 ```typescript
 @Processor('queue-name')
@@ -307,6 +319,7 @@ pnpm test                 # Run all unit tests
 pnpm test:watch         # Watch mode
 pnpm test:cov           # Coverage
 pnpm test:e2e           # End-to-end
+pnpm test:e2e -- test/app.e2e-spec.ts  # Run one e2e spec file
 ```
 
 ## Development Workflow
