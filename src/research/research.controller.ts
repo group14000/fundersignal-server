@@ -1,14 +1,17 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ResearchService } from './research.service';
 import { QueryGenerationService } from './query-generation.service';
+import { ScraperService } from './scraper.service';
 import { StartResearchDto } from './dto/start-research/start-research';
 import { CreateIdeaDto } from './dto/create-idea/create-idea';
+import { TestScraperDto } from './dto/test-scraper/test-scraper.dto';
 
 @Controller('research')
 export class ResearchController {
   constructor(
     private readonly researchService: ResearchService,
     private readonly queryGeneration: QueryGenerationService,
+    private readonly scraperService: ScraperService,
   ) {}
 
   @Post('jobs')
@@ -54,4 +57,17 @@ export class ResearchController {
       queryCount: queries.length,
     };
   }
+
+  @Post('test/scraper')
+  async testScraperService(@Body() body: TestScraperDto) {
+    const scrapedContent =
+      await this.scraperService.scrapeMultiple(body.searchResults);
+
+    return {
+      inputCount: body.searchResults.length,
+      successCount: scrapedContent.length,
+      results: scrapedContent,
+    };
+  }
 }
+
