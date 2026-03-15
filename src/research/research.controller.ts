@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { ResearchService } from './research.service';
 import { QueryGenerationService } from './query-generation.service';
 import { ScraperService } from './scraper.service';
 import { ResearchDataService } from './research-data.service';
+import { ResearchReportService } from './research-report.service';
 import { StartResearchDto } from './dto/start-research/start-research';
 import { CreateIdeaDto } from './dto/create-idea/create-idea';
 import { TestScraperDto } from './dto/test-scraper/test-scraper.dto';
@@ -10,6 +11,8 @@ import {
   PrepareResearchDatasetDto,
   StoreResearchDataDto,
 } from './dto/test-research-data/store-research-data.dto';
+import { ClerkGuard } from '../auth/guards/clerk.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @Controller('research')
 export class ResearchController {
@@ -18,6 +21,7 @@ export class ResearchController {
     private readonly queryGeneration: QueryGenerationService,
     private readonly scraperService: ScraperService,
     private readonly researchDataService: ResearchDataService,
+    private readonly researchReportService: ResearchReportService,
   ) {}
 
   @Post('jobs')
@@ -96,5 +100,14 @@ export class ResearchController {
       body.ideaId,
       body.limit,
     );
+  }
+
+  @UseGuards(ClerkGuard)
+  @Get('ideas/:ideaId/report')
+  getIdeaReport(
+    @Param('ideaId') ideaId: string,
+    @CurrentUser() user: { userId: string },
+  ) {
+    return this.researchReportService.getReport(ideaId, user.userId);
   }
 }
