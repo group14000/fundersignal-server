@@ -51,7 +51,7 @@ export class ResearchService {
     };
   }
 
-  async createIdeaWithJob(input: CreateIdeaDto) {
+  async createIdeaWithJob(input: CreateIdeaDto, userId?: string) {
     // Create Idea record
     const idea = await this.prisma.idea.create({
       data: {
@@ -60,6 +60,7 @@ export class ResearchService {
         industry: input.industry?.trim() ?? null,
         target_market: input.targetMarket?.trim() ?? null,
         status: 'PENDING',
+        user_id: userId ?? null,
       },
     });
 

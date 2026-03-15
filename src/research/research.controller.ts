@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ResearchService } from './research.service';
 import { QueryGenerationService } from './query-generation.service';
 import { ScraperService } from './scraper.service';
@@ -24,6 +25,8 @@ export class ResearchController {
     private readonly researchReportService: ResearchReportService,
   ) {}
 
+  // 10 requests per minute — enqueuing is cheap but still bounded
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('jobs')
   startResearch(@Body() body: StartResearchDto) {
     return this.researchService.enqueueResearchJob(body);
@@ -34,9 +37,15 @@ export class ResearchController {
     return this.researchService.getResearchJob(id);
   }
 
+  // 5 requests per minute — idea creation triggers LLM calls and queue jobs
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @UseGuards(ClerkGuard)
   @Post('ideas')
-  createIdea(@Body() body: CreateIdeaDto) {
-    return this.researchService.createIdeaWithJob(body);
+  createIdea(
+    @Body() body: CreateIdeaDto,
+    @CurrentUser() auth: { userId: string },
+  ) {
+    return this.researchService.createIdeaWithJob(body, auth.userId);
   }
 
   @Get('ideas/:ideaId')

@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude mcp:*)",
+      "Bash(where.exe claude:*)",
+      "Bash(ls /c/Users/hp/AppData/Roaming/npm/claude*)",
+      "Bash(ls /c/Users/hp/AppData/Local/npm/claude*)",
+      "Bash(npm list:*)",
+      "Bash(npm root:*)",
+      "Bash(cat /c/Users/hp/.claude/plugins/*.json)",
+      "Bash(xargs grep:*)",
+      "Bash(find /c/Users/hp -maxdepth 4 -name *.mcp.json -o -name mcp_servers.json)",
+      "Bash(npm install:*)",
+      "Bash(pnpm --version)",
+      "Bash(pnpm add:*)"
+    ]
+  }
+}
