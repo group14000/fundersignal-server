@@ -10,7 +10,7 @@ This document provides guidelines for AI agents (GitHub Copilot, Claude, etc.) t
 
 **Tech Stack:**
 - **Framework:** NestJS 11.0.1 with TypeScript
-- **Database:** PostgreSQL (Docker) + Prisma 7.4.2 ORM
+- **Database:** PostgreSQL (Docker) + Prisma 7.5.x ORM
 - **Job Queue:** Redis + BullMQ 5.70.4
 - **AI Integration:** OpenRouter SDK 0.9.11 (access to 300+ models)
 - **Authentication:** Clerk Express 2.0.1
@@ -36,6 +36,10 @@ src/
 │   ├── search-orchestrator.service.ts (multi-source result aggregation)
 │   ├── scraper.service.ts        (URL content extraction)
 │   ├── research-data.service.ts  (storage + dataset preparation)
+│   ├── content-ranking.service.ts (rank/filter top research entries)
+│   ├── insight-analysis.service.ts (LLM insights + fallback model)
+│   ├── research-report.service.ts (structured report composition)
+│   ├── research-agent.service.ts (3-iteration research loop orchestrator)
 │   ├── research.controller.ts    # REST endpoints
 ├── analysis/                     # Market analysis & insights
 │   ├── analysis.service.ts       # LLM-based analysis
@@ -69,7 +73,7 @@ pnpm run db:up
 pnpm run prisma:generate
 
 # 4. Run initial migration
-pnpm prisma:migrate -- --name init
+pnpm prisma:migrate --name init
 
 # 5. Start development server
 pnpm start:dev
@@ -176,12 +180,12 @@ nest g resource users
 ## Database & Prisma
 
 ### Current Schema
-9 models total (user, idea, research_data, competitor, problem, job_progress, insight, research_lead + 1 pending).
+9 models total: User, Idea, ResearchData, Competitor, Problem, JobProgress, Insight, ResearchLead, ResearchInsights.
 
 ### Common Prisma Tasks
 ```bash
 # Create new migration after schema changes
-pnpm prisma:migrate -- --name add_feature
+pnpm prisma:migrate --name add_feature
 
 # Introspect existing database
 pnpm prisma:generate
@@ -210,12 +214,26 @@ POST   /research/jobs              # Enqueue research job
 GET    /research/jobs/:id          # Get job status
 POST   /research/ideas             # Create idea + auto-enqueue analysis
 GET    /research/ideas/:ideaId     # Retrieve idea with insights
+GET    /research/ideas/:ideaId/report  # Structured research report (auth required)
 POST   /research/test/pipeline     # Test full pipeline (dev)
 POST   /research/test/queries      # Test AI query generation (dev)
 POST   /research/test/scraper      # Test URL content extraction (dev)
 POST   /research/test/research-data/store    # Test data storage + dedup (dev)
 POST   /research/test/research-data/prepare  # Test analysis dataset prep (dev)
 ```
+
+### Current Research Pipeline
+```
+QueryGenerationService
+  -> SearchOrchestratorService
+  -> ScraperService
+  -> ResearchDataService
+  -> ContentRankingService
+  -> InsightAnalysisService
+  -> ResearchReportService
+```
+
+`ResearchAgentService` orchestrates up to 3 iterative cycles and runs final insight analysis at the end.
 
 ### Response Format
 All endpoints use:
@@ -304,8 +322,9 @@ protectedRoute(@CurrentUser() auth: AuthObject) {
 ```
 
 ### Current Status
-- Guards & decorators exist but **not enforced** on research endpoints
-- Consider adding protection to `/research` endpoints in production
+- Guard is enforced on `GET /research/ideas/:ideaId/report`
+- Most other `/research` endpoints remain unguarded for dev/test workflows
+- Report access is restricted to the idea owner
 
 ## Testing
 
@@ -368,7 +387,7 @@ pnpm test:watch        # Terminal 2: Watch tests
 pnpm db:up             # Start PostgreSQL
 pnpm db:down           # Stop containers
 pnpm prisma:generate   # Update client after schema changes
-pnpm prisma:migrate -- --name description
+pnpm prisma:migrate --name description
 pnpm prisma:studio     # View/edit data
 
 # Code quality
