@@ -10,7 +10,7 @@ This document provides guidelines for AI agents (GitHub Copilot, Claude, etc.) t
 
 **Tech Stack:**
 - **Framework:** NestJS 11.0.1 with TypeScript
-- **Database:** PostgreSQL (Docker) + Prisma 7.5.x ORM
+- **Database:** PostgreSQL 18 (Docker) + pgvector extension + Prisma 7.5.x ORM
 - **Job Queue:** Redis + BullMQ 5.70.4
 - **AI Integration:** OpenRouter SDK 0.9.11 (access to 300+ models)
 - **Authentication:** Clerk Express 2.0.1
@@ -66,7 +66,7 @@ src/
 # 1. Install dependencies
 pnpm install
 
-# 2. Start PostgreSQL (Docker)
+# 2. Start PostgreSQL + Redis (Docker)
 pnpm run db:up
 
 # 3. Generate Prisma Client
@@ -78,6 +78,12 @@ pnpm prisma:migrate --name init
 # 5. Start development server
 pnpm start:dev
 ```
+
+### Docker DB Notes (Postgres + pgvector)
+- Docker uses `pgvector/pgvector:pg18-trixie` for the `postgres` service in `docker-compose.yml`.
+- pgvector is enabled via init script: `docker/init/01-pgvector.sql` (`CREATE EXTENSION IF NOT EXISTS vector;`).
+- If a Postgres volume already exists, init scripts will not rerun. Enable manually once:
+  `docker compose exec postgres psql -U postgres -d <db_name> -c "CREATE EXTENSION IF NOT EXISTS vector;"`
 
 ### Environment Configuration
 Create `.env` file with:

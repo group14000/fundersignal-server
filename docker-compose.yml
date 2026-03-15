@@ -1,6 +1,7 @@
 services:
   postgres:
-    image: postgres:latest
+    # PostgreSQL latest major (pg18) with pgvector extension preinstalled
+    image: pgvector/pgvector:pg18-trixie
     container_name: fundersignal-postgres
     restart: unless-stopped
     environment:
@@ -11,6 +12,7 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
+      - ./docker/init/01-pgvector.sql:/docker-entrypoint-initdb.d/01-pgvector.sql:ro
 
   redis:
     image: redis:7-alpine
