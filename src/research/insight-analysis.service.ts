@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OpenrouterService } from '../openrouter/openrouter.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ResearchDataService } from './research-data.service';
+import { ContentRankingService } from './content-ranking.service';
 
 export interface MarketInsights {
   demandScore: number;
@@ -28,6 +29,7 @@ export class InsightAnalysisService {
 
   constructor(
     private readonly researchData: ResearchDataService,
+    private readonly contentRanking: ContentRankingService,
     private readonly openrouter: OpenrouterService,
     private readonly prisma: PrismaService,
   ) {}
@@ -44,9 +46,12 @@ export class InsightAnalysisService {
     this.logger.log(`Starting insight analysis for idea: ${ideaId}`);
 
     // 1. Retrieve prepared dataset from ResearchDataService
-    const { dataset } = await this.researchData.prepareDatasetForAnalysis(
-      ideaId,
-      this.MAX_ENTRIES,
+    // 1. Retrieve ranked & filtered dataset from ContentRankingService
+    const { dataset, totalCandidates, filtered } =
+      await this.contentRanking.getRankedDataset(ideaId);
+
+    this.logger.log(
+      `ContentRanking: ${totalCandidates} candidates → ${filtered} filtered → ${dataset.length} ranked entries`,
     );
 
     if (dataset.length === 0) {

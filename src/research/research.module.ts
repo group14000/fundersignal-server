@@ -7,6 +7,7 @@ import { SearchOrchestratorService } from './search-orchestrator.service';
 import { ScraperService } from './scraper.service';
 import { ResearchDataService } from './research-data.service';
 import { InsightAnalysisService } from './insight-analysis.service';
+import { ContentRankingService } from './content-ranking.service';
 import { ResearchReportService } from './research-report.service';
 import { ResearchAgentService } from './research-agent.service';
 import { QueueModule } from '../queue/queue.module';
@@ -24,6 +25,7 @@ import { OpenrouterModule } from '../openrouter/openrouter.module';
     ScraperService,
     ResearchDataService,
     InsightAnalysisService,
+    ContentRankingService,
     ResearchReportService,
     ResearchAgentService,
   ],
@@ -35,6 +37,7 @@ import { OpenrouterModule } from '../openrouter/openrouter.module';
     ScraperService,
     ResearchDataService,
     InsightAnalysisService,
+    ContentRankingService,
     ResearchReportService,
     ResearchAgentService,
   ],
