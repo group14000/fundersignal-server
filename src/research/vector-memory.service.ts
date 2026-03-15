@@ -13,7 +13,8 @@ export interface SimilarResearchResult {
 @Injectable()
 export class VectorMemoryService {
   private readonly logger = new Logger(VectorMemoryService.name);
-  private readonly EMBEDDING_MODEL = 'nvidia/llama-nemotron-embed-vl-1b-v2:free';
+  private readonly EMBEDDING_MODEL =
+    'nvidia/llama-nemotron-embed-vl-1b-v2:free';
   private readonly EMBEDDING_DIMENSIONS = 1536;
   private readonly DEFAULT_LIMIT = 10;
 

@@ -1,6 +1,41 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import axios, { AxiosInstance } from 'axios';
 import * as cheerio from 'cheerio';
+
+const ALLOWED_SCRAPE_DOMAINS = [
+  'reddit.com',
+  'www.reddit.com',
+  'news.ycombinator.com',
+  'ycombinator.com',
+  'producthunt.com',
+  'www.producthunt.com',
+];
+
+/** Returns true if the hostname resolves to a private/loopback/link-local range. */
+function isPrivateHostname(hostname: string): boolean {
+  // Reject obvious loopback / unspecified literals
+  if (
+    hostname === 'localhost' ||
+    hostname === '0.0.0.0' ||
+    hostname === '::1'
+  ) {
+    return true;
+  }
+
+  // Match dotted-decimal IPv4 addresses
+  const ipv4 = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4) {
+    const [, a, b, c] = ipv4.map(Number);
+    if (a === 127) return true; // 127.x.x.x loopback
+    if (a === 10) return true; // 10.x.x.x private
+    if (a === 169 && b === 254) return true; // 169.254.x.x link-local / cloud metadata
+    if (a === 172 && b >= 16 && b <= 31) return true; // 172.16-31.x.x private
+    if (a === 192 && b === 168) return true; // 192.168.x.x private
+    if (a === 0) return true; // 0.x.x.x unspecified
+  }
+
+  return false;
+}
 
 export interface SearchResult {
   source: string;
@@ -91,6 +126,29 @@ export class ScraperService {
         return this.extractRedditContent(html);
       default:
         return this.extractGenericContent(html);
+    }
+  }
+
+  /**
+   * Validate that a URL's hostname is on the allowlist and not a private address.
+   * Throws BadRequestException if validation fails.
+   * Call this explicitly at trust boundaries (e.g. test/external endpoints)
+   * before passing user-supplied URLs to scrapeMultiple().
+   */
+  validateUrl(url: string): void {
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      throw new BadRequestException('URL domain not allowed.');
+    }
+
+    if (isPrivateHostname(parsed.hostname)) {
+      throw new BadRequestException('URL domain not allowed.');
+    }
+
+    if (!ALLOWED_SCRAPE_DOMAINS.includes(parsed.hostname)) {
+      throw new BadRequestException('URL domain not allowed.');
     }
   }
 

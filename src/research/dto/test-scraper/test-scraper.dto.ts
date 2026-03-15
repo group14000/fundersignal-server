@@ -3,19 +3,20 @@ import {
   IsString,
   IsOptional,
   IsNumber,
+  IsUrl,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class SearchResultDto {
   @IsString()
-  source: string;
+  source!: string;
 
   @IsString()
-  title: string;
+  title!: string;
 
-  @IsString()
-  url: string;
+  @IsUrl({ require_protocol: true })
+  url!: string;
 
   @IsOptional()
   @IsNumber()
@@ -34,5 +35,5 @@ export class TestScraperDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => SearchResultDto)
-  searchResults: SearchResultDto[];
+  searchResults!: SearchResultDto[];
 }

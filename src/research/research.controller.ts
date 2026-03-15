@@ -70,6 +70,12 @@ export class ResearchController {
 
   @Post('test/scraper')
   async testScraperService(@Body() body: TestScraperDto) {
+    // Validate every caller-supplied URL against the domain allowlist (SSRF protection).
+    // This is the trust boundary for external input; internal pipeline bypasses this.
+    for (const result of body.searchResults) {
+      this.scraperService.validateUrl(result.url);
+    }
+
     const scrapedContent = await this.scraperService.scrapeMultiple(
       body.searchResults,
     );

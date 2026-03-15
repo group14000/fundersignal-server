@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
 import { ConfigService } from '@nestjs/config';
 import { ResearchMainProcessor } from './processors/research-main.processor';
@@ -6,11 +6,15 @@ import { ScraperProcessor } from './processors/scraper.processor';
 import { AnalysisProcessor } from './processors/analysis.processor';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AnalysisModule } from '../analysis/analysis.module';
+import { ResearchModule } from '../research/research.module';
 
 @Module({
   imports: [
     PrismaModule,
     AnalysisModule,
+    // forwardRef breaks the circular dependency:
+    // ResearchModule → QueueModule → ResearchModule
+    forwardRef(() => ResearchModule),
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({

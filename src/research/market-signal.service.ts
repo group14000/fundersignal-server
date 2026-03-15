@@ -62,7 +62,10 @@ export class MarketSignalService {
       let modelUsed: string;
 
       try {
-        parsed = await this.runSignalDetection(trimmedDataset, this.PRIMARY_MODEL);
+        parsed = await this.runSignalDetection(
+          trimmedDataset,
+          this.PRIMARY_MODEL,
+        );
         modelUsed = this.PRIMARY_MODEL;
       } catch (primaryError) {
         const message =
@@ -73,7 +76,10 @@ export class MarketSignalService {
           `Primary signal model failed (${message}), retrying fallback model`,
         );
 
-        parsed = await this.runSignalDetection(trimmedDataset, this.FALLBACK_MODEL);
+        parsed = await this.runSignalDetection(
+          trimmedDataset,
+          this.FALLBACK_MODEL,
+        );
         modelUsed = this.FALLBACK_MODEL;
       }
 
@@ -217,7 +223,9 @@ Rules:
     return row.id;
   }
 
-  private async fallbackFromInsights(ideaId: string): Promise<MarketSignalResult> {
+  private async fallbackFromInsights(
+    ideaId: string,
+  ): Promise<MarketSignalResult> {
     const analysis = await this.insightAnalysis.analyzeIdea(ideaId);
 
     const fallbackSignals: MarketSignal[] = [

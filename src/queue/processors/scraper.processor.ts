@@ -1,7 +1,12 @@
 import { Logger } from '@nestjs/common';
 import { OnQueueFailed, Process, Processor } from '@nestjs/bull';
 import { Job } from 'bullmq';
-import { PrismaService } from '../../prisma/prisma.service';
+import { SearchOrchestratorService } from '../../research/search-orchestrator.service';
+import { ScraperService } from '../../research/scraper.service';
+import {
+  ResearchDataService,
+  ScrapedResearchInput,
+} from '../../research/research-data.service';
 
 type ScrapingJobData = {
   ideaId: string;
@@ -15,74 +20,69 @@ type ScrapingJobData = {
 export class ScraperProcessor {
   private readonly logger = new Logger(ScraperProcessor.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly searchOrchestrator: SearchOrchestratorService,
+    private readonly scraperService: ScraperService,
+    private readonly researchData: ResearchDataService,
+  ) {}
 
   @Process()
   async handleScraping(job: Job<ScrapingJobData>) {
-    const { ideaId, jobId, title, sourceType, keywords } = job.data;
+    const { ideaId, sourceType, title, keywords } = job.data;
 
-    this.logger.log(`Scraping ${sourceType} for idea ${ideaId}`);
+    this.logger.log(`Starting scraping for ${sourceType}, idea ${ideaId}`);
 
     if (!ideaId || !sourceType) {
       throw new Error('ideaId and sourceType are required');
     }
 
     try {
-      // Generate mock data based on source type
-      const mockData = this.generateMockData(sourceType, title, keywords);
+      // Step A — Build queries: prefer explicit keywords, fall back to idea title
+      const queries =
+        Array.isArray(keywords) && keywords.length > 0 ? keywords : [title];
 
-      // Save each data point to database
-      const savedRecords = await Promise.all(
-        mockData.map((item) =>
-          this.prisma.researchData.create({
-            data: {
-              idea_id: ideaId,
-              source_type: sourceType,
-              source_name: item.source,
-              source_url: item.url,
-              data_type: item.dataType,
-              title: item.title,
-              content: item.content,
-              author: item.author,
-              score: item.score,
-              comments_count: item.comments,
-              processed: false,
-            },
-          }),
-        ),
-      );
-
-      // Update JobProgress with collected data count
-      if (jobId) {
-        await this.prisma.jobProgress
-          .update(
-            {
-              where: { job_id: jobId },
-              data: {
-                data_points_collected: {
-                  increment: savedRecords.length,
-                },
-              },
-            },
-            // Use try-catch to handle in case JobProgress doesn't exist yet
-          )
-          .catch((error) => {
-            this.logger.warn(`Could not update JobProgress: ${error.message}`);
-          });
-      }
+      // Step B — Fetch ranked search results from HackerNews + Reddit
+      const searchResults =
+        await this.searchOrchestrator.orchestrateSearch(queries);
 
       this.logger.log(
-        `Scraped ${savedRecords.length} items from ${sourceType}`,
+        `[${sourceType}] ${searchResults.length} search results for idea ${ideaId}`,
+      );
+
+      // Step C — Scrape page content for each result URL
+      const scraped = await this.scraperService.scrapeMultiple(searchResults);
+
+      this.logger.log(
+        `[${sourceType}] Scraped ${scraped.length} pages for idea ${ideaId}`,
+      );
+
+      // Step D — Store entries: deduplication + embedding generation happen inside
+      const entries: ScrapedResearchInput[] = scraped.map((item) => ({
+        source: item.source,
+        title: item.title,
+        url: item.url,
+        content: item.content,
+      }));
+
+      const storeResult = await this.researchData.storeScrapedContent(
+        ideaId,
+        entries,
+      );
+
+      this.logger.log(
+        `[${sourceType}] Stored ${storeResult.stored} entries for idea ${ideaId} ` +
+          `(${storeResult.skippedDuplicate} duplicates skipped, ${storeResult.failed} failed)`,
       );
 
       return {
-        ok: true,
-        sourceType,
-        itemsCollected: savedRecords.length,
-        jobId,
+        storedEntries: storeResult.stored,
+        source: sourceType,
       };
     } catch (error) {
-      this.logger.error(`Scraping failed for ${sourceType}`, error);
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Scraping failed for ${sourceType} idea ${ideaId}: ${message}`,
+      );
       throw error;
     }
   }
@@ -90,56 +90,5 @@ export class ScraperProcessor {
   @OnQueueFailed()
   onFailed(job: Job, error: Error) {
     this.logger.error(`Scraping job ${job.id} failed`, error.stack);
-  }
-
-  private generateMockData(
-    sourceType: string,
-    title: string,
-    keywords: string[],
-  ) {
-    const sourceConfig = {
-      reddit: {
-        source: 'Reddit',
-        dataType: 'discussion',
-        count: 8,
-        baseScore: 50,
-      },
-      hackernews: {
-        source: 'Hacker News',
-        dataType: 'post',
-        count: 5,
-        baseScore: 100,
-      },
-      producthunt: {
-        source: 'Product Hunt',
-        dataType: 'product',
-        count: 6,
-        baseScore: 150,
-      },
-      google: {
-        source: 'Google Search',
-        dataType: 'article',
-        count: 10,
-        baseScore: 0,
-      },
-    };
-
-    const config =
-      sourceConfig[sourceType as keyof typeof sourceConfig] ||
-      sourceConfig.google;
-
-    return Array.from({ length: config.count }, (_, i) => ({
-      title: `${keywords[0] || title} discussion/article ${i + 1}`,
-      content:
-        `This is mock content about ${keywords.join(', ')} from ${config.source}. ` +
-        `It discusses potential use cases, benefits, and challenges. ` +
-        `The original discussion/post is indexed here for reference.`,
-      author: `user_${Math.random().toString(36).substr(2, 9)}`,
-      source: config.source,
-      url: `https://${sourceType}.example.com/post/${i + 1}`,
-      dataType: config.dataType,
-      score: config.baseScore + Math.floor(Math.random() * 50),
-      comments: Math.floor(Math.random() * 100),
-    }));
   }
 }

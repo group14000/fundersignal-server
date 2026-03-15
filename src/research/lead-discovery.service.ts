@@ -54,7 +54,9 @@ export class LeadDiscoveryService {
       const usedQueries = this.buildQueriesFromSignals(signals);
 
       if (usedQueries.length === 0) {
-        this.logger.warn(`No market signal queries available for idea ${ideaId}`);
+        this.logger.warn(
+          `No market signal queries available for idea ${ideaId}`,
+        );
         return {
           ideaId,
           leads: [],
@@ -64,9 +66,8 @@ export class LeadDiscoveryService {
         };
       }
 
-      const searchResults = await this.searchOrchestrator.orchestrateSearch(
-        usedQueries,
-      );
+      const searchResults =
+        await this.searchOrchestrator.orchestrateSearch(usedQueries);
 
       const scraped = await this.scraperService.scrapeMultiple(
         searchResults.slice(0, this.MAX_SCRAPED_ENTRIES),
@@ -153,7 +154,10 @@ export class LeadDiscoveryService {
     const prompt = this.buildLeadExtractionPrompt(dataset, usedQueries);
 
     try {
-      const response = await this.openrouter.sendPrompt(prompt, this.PRIMARY_MODEL);
+      const response = await this.openrouter.sendPrompt(
+        prompt,
+        this.PRIMARY_MODEL,
+      );
       return this.parseLeadResponse(response).leads;
     } catch (primaryError) {
       const primaryMessage =
@@ -172,7 +176,10 @@ export class LeadDiscoveryService {
     }
   }
 
-  private buildLeadExtractionPrompt(dataset: string[], queries: string[]): string {
+  private buildLeadExtractionPrompt(
+    dataset: string[],
+    queries: string[],
+  ): string {
     const queryBlock = queries.length ? queries.join(', ') : '(none)';
     const dataBlock = dataset.length
       ? dataset.map((entry, idx) => `[${idx + 1}] ${entry}`).join('\n\n')
