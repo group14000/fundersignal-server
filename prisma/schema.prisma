@@ -27,6 +27,7 @@ model Idea {
   industry               String?
   target_market          String?
   job_id                 String?  @unique // Links to BullMQ job ID
+  idea_hash              String?  @unique // SHA-256 of title+description+keywords for deduplication
   status                 String   @default("PENDING") // PENDING, SCRAPING, ANALYZING, GENERATING_REPORT, COMPLETED, FAILED
   demand_score           Float?
   competitor_count       Int?
@@ -126,6 +127,8 @@ model JobProgress {
   data_points_collected  Int      @default(0)
   competitors_found      Int      @default(0)
   problems_identified    Int      @default(0)
+  jobs_total             Int      @default(0)  // total scraping jobs enqueued
+  jobs_completed         Int      @default(0)  // scraping jobs that finished
   started_at             DateTime @default(now())
   completed_at           DateTime?
   

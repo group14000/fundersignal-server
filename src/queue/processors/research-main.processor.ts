@@ -41,18 +41,23 @@ export class ResearchMainProcessor {
         },
       });
 
-      // Update JobProgress
+      const sources = ['reddit', 'hackernews', 'producthunt', 'google'];
+      const totalJobs = sources.length;
+
+      // Record expected job count BEFORE enqueuing so ScraperProcessor
+      // can check against it atomically when each job finishes.
       await this.prisma.jobProgress.update({
         where: { job_id: String(job.id) },
         data: {
           current_status: 'SCRAPING',
           progress_percentage: 25,
           current_task: 'Collecting data from sources',
+          jobs_total: totalJobs,
+          jobs_completed: 0,
         },
       });
 
-      // Enqueue scraping tasks for each source
-      const sources = ['reddit', 'hackernews', 'producthunt', 'google'];
+      // Enqueue one scraping task per source
       const scrapingJobs = await Promise.all(
         sources.map((sourceType) =>
           this.scrapingQueue.add(`scrape-${sourceType}`, {
@@ -65,33 +70,13 @@ export class ResearchMainProcessor {
         ),
       );
 
-      this.logger.log(`Enqueued ${scrapingJobs.length} scraping tasks`, {
-        ideaId,
-        jobId: job.id,
-      });
+      this.logger.log(
+        `Enqueued ${scrapingJobs.length} scraping tasks for idea ${ideaId}`,
+        { jobId: job.id },
+      );
 
-      // Wait briefly for scraping to start
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // Mark as completed
-      await this.prisma.idea.update({
-        where: { id: ideaId },
-        data: {
-          status: 'COMPLETED',
-          research_completed_at: new Date(),
-        },
-      });
-
-      await this.prisma.jobProgress.update({
-        where: { job_id: String(job.id) },
-        data: {
-          current_status: 'COMPLETED',
-          progress_percentage: 100,
-          current_task: 'Research complete',
-          completed_at: new Date(),
-        },
-      });
-
+      // Do NOT mark COMPLETED here — ScraperProcessor will set COMPLETED
+      // once all ${totalJobs} scraping jobs have finished.
       return {
         ok: true,
         jobId: String(job.id),

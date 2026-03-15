@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bullmq';
+import { createHash } from 'crypto';
 import { StartResearchDto } from './dto/start-research/start-research';
 import { CreateIdeaDto } from './dto/create-idea/create-idea';
 import { PrismaService } from '../prisma/prisma.service';
@@ -52,6 +53,30 @@ export class ResearchService {
   }
 
   async createIdeaWithJob(input: CreateIdeaDto, userId?: string) {
+    // Deduplicate: compute fingerprint and return existing idea if already analyzed
+    const fingerprint = this.computeFingerprint(input);
+
+    const existing = await this.prisma.idea.findUnique({
+      where: { idea_hash: fingerprint },
+    });
+
+    if (existing) {
+      return {
+        duplicate: true,
+        message: 'Idea already analyzed',
+        idea: {
+          id: existing.id,
+          title: existing.title,
+          description: existing.description,
+          industry: existing.industry,
+          targetMarket: existing.target_market,
+          status: existing.status,
+          jobId: existing.job_id,
+          createdAt: existing.created_at,
+        },
+      };
+    }
+
     // Create Idea record
     const idea = await this.prisma.idea.create({
       data: {
@@ -61,6 +86,7 @@ export class ResearchService {
         target_market: input.targetMarket?.trim() ?? null,
         status: 'PENDING',
         user_id: userId ?? null,
+        idea_hash: fingerprint,
       },
     });
 
@@ -326,5 +352,16 @@ Market reports indicate strong demand and willingness to pay for solutions.`,
       analysisJobQueued: String(analysisJob.id),
       nextStep: 'Analysis is running on analysis:tasks queue',
     };
+  }
+
+  private computeFingerprint(input: CreateIdeaDto): string {
+    const raw =
+      input.title.trim().toLowerCase() +
+      (input.description?.trim().toLowerCase() ?? '') +
+      (input.keywords ?? [])
+        .map((k) => k.trim().toLowerCase())
+        .sort()
+        .join(',');
+    return createHash('sha256').update(raw).digest('hex');
   }
 }
