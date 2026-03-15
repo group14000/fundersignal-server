@@ -42,7 +42,7 @@ export class QueryGenerationService {
       this.logger.warn(
         `AI query generation failed (${errorMsg}), falling back to keyword extraction`,
       );
-      
+
       // Fallback to simple keyword extraction
       return this.fallbackQueryGeneration(idea);
     }
@@ -52,9 +52,7 @@ export class QueryGenerationService {
    * Build the LLM prompt for query generation
    */
   private buildQueryPrompt(idea: IdeaInput): string {
-    const industryContext = idea.industry
-      ? `\nINDUSTRY: ${idea.industry}`
-      : '';
+    const industryContext = idea.industry ? `\nINDUSTRY: ${idea.industry}` : '';
 
     return `You are a market researcher helping analyze startup ideas.
 
@@ -139,10 +137,10 @@ Make queries specific, actionable, and relevant to market research.`;
     // Extract from title
     if (idea.title) {
       keywords.push(idea.title.toLowerCase());
-      
+
       // Add "problems" variant
       keywords.push(`${idea.title} problems`);
-      
+
       // Add "alternatives" variant
       keywords.push(`${idea.title} alternatives`);
     }
@@ -210,7 +208,9 @@ Make queries specific, actionable, and relevant to market research.`;
         'Balance between problems, competitors, tools, and market discussions.',
     };
 
-    const instruction = focusInstructions[focus as keyof typeof focusInstructions] || focusInstructions.general;
+    const instruction =
+      focusInstructions[focus as keyof typeof focusInstructions] ||
+      focusInstructions.general;
 
     return `You are a market researcher helping analyze startup ideas.
 

@@ -66,8 +66,9 @@ export class ResearchController {
 
   @Post('test/scraper')
   async testScraperService(@Body() body: TestScraperDto) {
-    const scrapedContent =
-      await this.scraperService.scrapeMultiple(body.searchResults);
+    const scrapedContent = await this.scraperService.scrapeMultiple(
+      body.searchResults,
+    );
 
     return {
       inputCount: body.searchResults.length,
@@ -97,4 +98,3 @@ export class ResearchController {
     );
   }
 }
-

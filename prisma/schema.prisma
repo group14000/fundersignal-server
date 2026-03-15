@@ -39,6 +39,7 @@ model Idea {
   research_data          ResearchData[]
   job_progress           JobProgress?
   insights               Insight?
+  research_insights      ResearchInsights?
   competitors            Competitor[]
   problems               Problem[]
   research_leads         ResearchLead[]
@@ -164,5 +165,21 @@ model ResearchLead {
   confidence_score  Float?
   created_at        DateTime @default(now())
   
+  @@index([idea_id])
+}
+
+// AI-generated market insights from collected research data
+model ResearchInsights {
+  id                  String   @id @default(cuid())
+  idea_id             String   @unique
+  idea                Idea     @relation(fields: [idea_id], references: [id], onDelete: Cascade)
+  demand_score        Float?
+  problems            String   @db.Text @default("[]") // JSON array of identified problems
+  competitors         String   @db.Text @default("[]") // JSON array of identified competitors/tools
+  opportunity_summary String?  @db.Text
+  model_used          String?
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
   @@index([idea_id])
 }

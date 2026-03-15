@@ -42,9 +42,7 @@ export class ScraperService {
     // Limit to max URLs
     const urlsToScrape = searchResults.slice(0, this.MAX_URLS);
 
-    this.logger.log(
-      `Starting to scrape ${urlsToScrape.length} URLs`,
-    );
+    this.logger.log(`Starting to scrape ${urlsToScrape.length} URLs`);
 
     for (const result of urlsToScrape) {
       try {
@@ -59,11 +57,8 @@ export class ScraperService {
           `Successfully scraped: ${result.source} - ${result.url}`,
         );
       } catch (error) {
-        const errorMsg =
-          error instanceof Error ? error.message : String(error);
-        this.logger.warn(
-          `Failed to scrape ${result.url}: ${errorMsg}`,
-        );
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        this.logger.warn(`Failed to scrape ${result.url}: ${errorMsg}`);
         // Continue processing other URLs
         continue;
       }
@@ -230,9 +225,7 @@ export class ScraperService {
       }
 
       // Extract post body/description
-      const postBody = $('[data-testid="post-container"]')
-        .text()
-        .trim();
+      const postBody = $('[data-testid="post-container"]').text().trim();
       if (postBody) {
         textContent.push(postBody);
       }
@@ -321,9 +314,7 @@ export class ScraperService {
       }
 
       // Cleanup: remove extra whitespace
-      content = content
-        .replace(/\s+/g, ' ')
-        .trim();
+      content = content.replace(/\s+/g, ' ').trim();
 
       return content
         ? content.substring(0, this.MAX_CONTENT_LENGTH)

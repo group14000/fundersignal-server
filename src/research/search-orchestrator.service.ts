@@ -9,10 +9,11 @@ interface RankedSearchResult extends SearchResult {
 export class SearchOrchestratorService {
   private readonly logger = new Logger(SearchOrchestratorService.name);
   private readonly MAX_RESULTS = 20;
-  private readonly SOURCE_RELIABILITY: Record<SearchResult['source'], number> = {
-    hackernews: 1.0,
-    reddit: 0.9,
-  };
+  private readonly SOURCE_RELIABILITY: Record<SearchResult['source'], number> =
+    {
+      hackernews: 1.0,
+      reddit: 0.9,
+    };
 
   constructor(private readonly searchService: SearchService) {}
 
@@ -32,7 +33,9 @@ export class SearchOrchestratorService {
       const deduplicated = this.deduplicateByUrl(merged);
       const ranked = this.rankResults(deduplicated, queries);
 
-      return ranked.slice(0, this.MAX_RESULTS).map(({ rankScore, ...result }) => result);
+      return ranked
+        .slice(0, this.MAX_RESULTS)
+        .map(({ rankScore, ...result }) => result);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Search orchestration failed: ${message}`);
@@ -99,13 +102,17 @@ export class SearchOrchestratorService {
     return Array.from(map.values());
   }
 
-  private rankResults(results: SearchResult[], queries: string[]): RankedSearchResult[] {
+  private rankResults(
+    results: SearchResult[],
+    queries: string[],
+  ): RankedSearchResult[] {
     return results
       .map((result) => {
         const relevance = this.computeRelevance(result, queries);
         const reliability = this.SOURCE_RELIABILITY[result.source] ?? 0.5;
 
-        const rankScore = result.score * 0.7 + relevance * 20 + reliability * 10;
+        const rankScore =
+          result.score * 0.7 + relevance * 20 + reliability * 10;
 
         return {
           ...result,

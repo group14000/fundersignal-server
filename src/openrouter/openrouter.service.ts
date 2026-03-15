@@ -43,7 +43,7 @@ export class OpenrouterService {
     stream = false,
   ) {
     const selectedModel = model || this.defaultModel;
-    
+
     // OpenRouter SDK expects chatGenerationParams with model inside
     const completion = await this.openRouter.chat.send(
       {
@@ -89,4 +89,3 @@ export class OpenrouterService {
     return this.openRouter;
   }
 }
-

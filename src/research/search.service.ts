@@ -150,8 +150,7 @@ export class SearchService {
           }>;
         };
       }>(url.toString(), {
-        'User-Agent':
-          'FounderSignal/1.0 (+http://localhost:5000) research bot',
+        'User-Agent': 'FounderSignal/1.0 (+http://localhost:5000) research bot',
       });
 
       if (!response.data || !response.data.children) {
@@ -190,10 +189,13 @@ export class SearchService {
   /**
    * Generic HTTP fetch with JSON parsing
    */
-  private fetchJson<T>(url: string, headers?: Record<string, string>): Promise<T> {
+  private fetchJson<T>(
+    url: string,
+    headers?: Record<string, string>,
+  ): Promise<T> {
     return new Promise((resolve, reject) => {
       const requestHeaders = {
-        'Accept': 'application/json',
+        Accept: 'application/json',
         ...headers,
       };
 
