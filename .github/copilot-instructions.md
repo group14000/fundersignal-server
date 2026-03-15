@@ -36,7 +36,10 @@ src/
 │   ├── search-orchestrator.service.ts (multi-source result aggregation)
 │   ├── scraper.service.ts        (URL content extraction)
 │   ├── research-data.service.ts  (storage + dataset preparation)
+│   ├── vector-memory.service.ts  (embedding generation + similarity search)
 │   ├── content-ranking.service.ts (rank/filter top research entries)
+│   ├── market-signal.service.ts  (recurring signal detection from ranked data)
+│   ├── lead-discovery.service.ts (lead/company extraction from market signals)
 │   ├── insight-analysis.service.ts (LLM insights + fallback model)
 │   ├── research-report.service.ts (structured report composition)
 │   ├── research-agent.service.ts (3-iteration research loop orchestrator)
@@ -82,6 +85,7 @@ pnpm start:dev
 ### Docker DB Notes (Postgres + pgvector)
 - Docker uses `pgvector/pgvector:pg18-trixie` for the `postgres` service in `docker-compose.yml`.
 - pgvector is enabled via init script: `docker/init/01-pgvector.sql` (`CREATE EXTENSION IF NOT EXISTS vector;`).
+- Migration order matters for pgvector types: create extension before any migration that uses `vector(...)` columns.
 - If a Postgres volume already exists, init scripts will not rerun. Enable manually once:
   `docker compose exec postgres psql -U postgres -d <db_name> -c "CREATE EXTENSION IF NOT EXISTS vector;"`
 
@@ -186,7 +190,7 @@ nest g resource users
 ## Database & Prisma
 
 ### Current Schema
-9 models total: User, Idea, ResearchData, Competitor, Problem, JobProgress, Insight, ResearchLead, ResearchInsights.
+11 models total: User, Idea, ResearchData, Competitor, Problem, JobProgress, Insight, ResearchLead, ResearchInsights, MarketSignals, Lead.
 
 ### Common Prisma Tasks
 ```bash
@@ -234,12 +238,16 @@ QueryGenerationService
   -> SearchOrchestratorService
   -> ScraperService
   -> ResearchDataService
+  -> VectorMemoryService
   -> ContentRankingService
+  -> MarketSignalService
+  -> LeadDiscoveryService
   -> InsightAnalysisService
   -> ResearchReportService
 ```
 
 `ResearchAgentService` orchestrates up to 3 iterative cycles and runs final insight analysis at the end.
+`LeadDiscoveryService` is implemented and exported, but automatic invocation in the agent/queue pipeline is still integration-dependent.
 
 ### Response Format
 All endpoints use:

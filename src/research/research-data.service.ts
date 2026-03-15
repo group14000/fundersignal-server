@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { VectorMemoryService } from './vector-memory.service';
 
 export interface ScrapedResearchInput {
   source: string;
@@ -28,7 +29,10 @@ export class ResearchDataService {
   private readonly MAX_CONTENT_LENGTH = 2000;
   private readonly DEFAULT_DATASET_LIMIT = 20;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly vectorMemory: VectorMemoryService,
+  ) {}
 
   async storeScrapedContent(
     ideaId: string,
@@ -70,7 +74,7 @@ export class ResearchDataService {
           continue;
         }
 
-        await this.prisma.researchData.create({
+        const created = await this.prisma.researchData.create({
           data: {
             idea_id: ideaId,
             source_type: cleaned.source,
@@ -80,7 +84,26 @@ export class ResearchDataService {
             title: cleaned.title,
             content: cleaned.content,
           },
+          select: {
+            id: true,
+          },
         });
+
+        // Embedding failures should never break ingestion.
+        try {
+          await this.vectorMemory.generateAndStoreEmbedding(
+            created.id,
+            cleaned.content,
+          );
+        } catch (embeddingError) {
+          const embeddingMessage =
+            embeddingError instanceof Error
+              ? embeddingError.message
+              : String(embeddingError);
+          this.logger.warn(
+            `Embedding generation failed for research entry ${created.id}: ${embeddingMessage}`,
+          );
+        }
 
         result.stored += 1;
       } catch (error) {

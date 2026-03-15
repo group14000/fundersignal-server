@@ -40,6 +40,8 @@ model Idea {
   job_progress           JobProgress?
   insights               Insight?
   research_insights      ResearchInsights?
+  market_signals         MarketSignals?
+  leads                  Lead[]
   competitors            Competitor[]
   problems               Problem[]
   research_leads         ResearchLead[]
@@ -60,6 +62,7 @@ model ResearchData {
   data_type        String   // 'discussion', 'post', 'comment', 'article'
   title            String?
   content          String   @db.Text
+  embedding        Unsupported("vector(1536)")?
   author           String?
   score            Int?
   comments_count   Int?
@@ -182,4 +185,33 @@ model ResearchInsights {
   updated_at          DateTime @updatedAt
 
   @@index([idea_id])
+}
+
+// Detected market signals across ranked research data
+model MarketSignals {
+  id                 String   @id @default(cuid())
+  idea_id            String   @unique
+  idea               Idea     @relation(fields: [idea_id], references: [id], onDelete: Cascade)
+  signals            String   @db.Text @default("[]") // JSON array of signal objects
+  opportunity_areas  String   @db.Text @default("[]") // JSON array of opportunity area strings
+  model_used         String?
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  @@index([idea_id])
+}
+
+// Discovered leads and companies related to an idea
+model Lead {
+  id         String   @id @default(cuid())
+  idea_id    String
+  idea       Idea     @relation(fields: [idea_id], references: [id], onDelete: Cascade)
+  company    String
+  industry   String?
+  role       String?
+  website    String?
+  created_at DateTime @default(now())
+
+  @@index([idea_id])
+  @@map("Leads")
 }
