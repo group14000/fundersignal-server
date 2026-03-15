@@ -8,6 +8,7 @@ import { ScraperService } from './scraper.service';
 import { ResearchDataService } from './research-data.service';
 import { InsightAnalysisService } from './insight-analysis.service';
 import { ResearchReportService } from './research-report.service';
+import { ResearchAgentService } from './research-agent.service';
 import { QueueModule } from '../queue/queue.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AnalysisModule } from '../analysis/analysis.module';
@@ -24,6 +25,7 @@ import { OpenrouterModule } from '../openrouter/openrouter.module';
     ResearchDataService,
     InsightAnalysisService,
     ResearchReportService,
+    ResearchAgentService,
   ],
   controllers: [ResearchController],
   exports: [
@@ -34,6 +36,7 @@ import { OpenrouterModule } from '../openrouter/openrouter.module';
     ResearchDataService,
     InsightAnalysisService,
     ResearchReportService,
+    ResearchAgentService,
   ],
 })
 export class ResearchModule {}
