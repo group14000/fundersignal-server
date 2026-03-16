@@ -1,269 +1,236 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# FounderSignal Server
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+FounderSignal Server is a NestJS backend that helps founders validate startup ideas through automated market research, signal detection, lead discovery, and AI-driven reporting.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## What This System Does
 
-## Description
+- Accepts startup ideas and runs asynchronous research jobs
+- Collects and stores research content from web/discussion sources
+- Builds vector memory with pgvector for semantic similarity workflows
+- Ranks and filters noisy content before LLM analysis
+- Detects market signals and opportunity areas
+- Discovers potential leads and companies from signal-driven queries
+- Generates insight summaries and structured reports
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## High-Level System Design (HLD)
 
-## Project setup
+```mermaid
+flowchart LR
+    A[Client App / API Consumer] --> B[NestJS API Layer]
+    B --> C[Auth Layer - ClerkGuard + CurrentUser]
 
-```bash
-$ pnpm install
+    B --> D[Research Controller + Research Service]
+
+    D --> E[BullMQ - research:main]
+    E --> F[ResearchMainProcessor]
+    F --> G[scraping:tasks]
+    G --> H[ScraperProcessor]
+    H --> I[analysis:tasks]
+    I --> J[AnalysisProcessor]
+
+    D --> K[Research Pipeline Services]
+
+    subgraph K [Research Pipeline]
+      K1[QueryGenerationService]
+      K2[SearchOrchestratorService]
+      K3[ScraperService]
+      K4[ResearchDataService]
+      K5[VectorMemoryService]
+      K6[ContentRankingService]
+      K7[MarketSignalService]
+      K8[LeadDiscoveryService]
+      K9[InsightAnalysisService]
+      K10[ResearchReportService]
+      K11[ResearchAgentService - iterative loop]
+
+      K1 --> K2 --> K3 --> K4 --> K5 --> K6 --> K7 --> K8 --> K9 --> K10
+      K11 --> K1
+      K11 --> K9
+    end
+
+    K --> L[(PostgreSQL 18 + pgvector)]
+    E --> M[(Redis)]
+    K1 --> N[OpenRouter]
+    K7 --> N
+    K8 --> N
+    K9 --> N
+
+    L --> L1[Idea / ResearchData / ResearchInsights]
+    L --> L2[MarketSignals / Leads / Competitor / Problem]
 ```
 
-## Local PostgreSQL (Docker) + Prisma Setup
+## End-to-End Research Sequence
 
-1. Start PostgreSQL (latest image) with Docker:
+```mermaid
+sequenceDiagram
+  autonumber
+  participant U as Client App
+  participant API as ResearchController/API
+  participant RS as ResearchService
+  participant Q as BullMQ (research:main)
+  participant RP as ResearchMainProcessor
+  participant QG as QueryGenerationService
+  participant SO as SearchOrchestratorService
+  participant SC as ScraperService
+  participant RD as ResearchDataService
+  participant VM as VectorMemoryService
+  participant CR as ContentRankingService
+  participant MS as MarketSignalService
+  participant LD as LeadDiscoveryService
+  participant IA as InsightAnalysisService
+  participant RR as ResearchReportService
+  participant DB as PostgreSQL + pgvector
+  participant OR as OpenRouter
 
-```bash
-$ pnpm run db:up
+  U->>API: POST /research/jobs (idea payload)
+  API->>RS: enqueueResearchJob()
+  RS->>DB: create Idea + JobProgress
+  RS->>Q: add start-research job
+  API-->>U: 200 accepted + job metadata
+
+  Q->>RP: process job
+  RP->>QG: generate queries
+  QG->>OR: LLM query generation
+  OR-->>QG: queries
+
+  RP->>SO: orchestrateSearch(queries)
+  SO-->>RP: ranked URLs
+  RP->>SC: scrapeMultiple(urls)
+  SC-->>RP: extracted content
+
+  RP->>RD: storeScrapedContent(ideaId, entries)
+  RD->>DB: insert ResearchData rows
+  RD->>VM: generateAndStoreEmbedding(content)
+  VM->>OR: embeddings API
+  VM->>DB: update vector column
+
+  RP->>CR: getRankedDataset(ideaId)
+  CR-->>RP: top research dataset
+  RP->>MS: detectSignals(ideaId)
+  MS->>OR: signal detection prompt
+  MS->>DB: upsert MarketSignals
+  RP->>LD: discoverLeads(ideaId)
+  LD->>OR: lead extraction prompt
+  LD->>DB: replace Leads for idea
+
+  RP->>IA: analyzeIdea(ideaId)
+  IA->>OR: insights prompt
+  IA->>DB: upsert ResearchInsights/Insight
+
+  U->>API: GET /research/ideas/:ideaId/report
+  API->>RR: getReport(ideaId, userId)
+  RR->>DB: fetch idea + insights
+  RR-->>API: structured report
+  API-->>U: 200 report response
 ```
 
-2. Generate Prisma Client:
+## Core Modules
 
-```bash
-$ pnpm run prisma:generate
-```
+- Auth: Clerk integration with guards and current-user decorator
+- OpenRouter: centralized LLM/AI access wrapper
+- Queue: BullMQ queues and processors
+- Research: end-to-end pipeline services and orchestrators
+- Prisma: database client and schema access
 
-3. Run the first migration:
+## Tech Stack
 
-```bash
-$ pnpm run prisma:migrate -- --name init
-```
+- Framework: NestJS 11 + TypeScript
+- Database: PostgreSQL 18 (Docker) + pgvector extension + Prisma
+- Queue: Redis + BullMQ
+- AI: OpenRouter SDK
+- Auth: Clerk
 
-4. (Optional) Open Prisma Studio:
+## Local Setup
 
-```bash
-$ pnpm run prisma:studio
-```
+1. Install dependencies
 
-Environment values are in `.env`:
+   pnpm install
 
-- `POSTGRES_DB`
-- `POSTGRES_USER`
-- `POSTGRES_PASSWORD`
-- `POSTGRES_PORT`
-- `DATABASE_URL`
+2. Start infrastructure (Postgres + Redis)
 
-Default local mapping uses port `5433` to avoid conflicts with an existing local Postgres on `5432`.
+   pnpm run db:up
 
-## Authentication with Clerk
+3. Generate Prisma client
 
-This project uses [Clerk](https://clerk.com/) for authentication and authorization.
+   pnpm run prisma:generate
 
-### Setup
+4. Apply migrations
 
-Add your Clerk credentials to `.env`:
+   pnpm prisma:migrate --name init
 
-```env
-CLERK_PUBLISHABLE_KEY=pk_test_...
-CLERK_SECRET_KEY=sk_test_...
-```
+5. Start server
 
-### Usage
+   pnpm start:dev
 
-#### Protecting Routes
+Server base URL: http://localhost:5000
 
-Use the `ClerkGuard` to protect routes:
+## Docker + pgvector Notes
 
-```typescript
-import { Controller, Get, UseGuards } from '@nestjs/common';
-import { ClerkGuard } from './auth/guards/clerk.guard';
-import { CurrentUser } from './auth/decorators/current-user.decorator';
+- Postgres container image is pgvector/pgvector:pg18-trixie
+- pgvector extension is enabled via docker/init/01-pgvector.sql
+- If your Postgres volume already existed before init scripts were added, run once:
 
-@Controller('protected')
-export class MyController {
-  @Get()
-  @UseGuards(ClerkGuard)
-  protectedRoute(@CurrentUser() auth: AuthObject) {
-    return { userId: (auth as any).userId };
-  }
-}
-```
+  docker compose exec postgres psql -U postgres -d fundersignal -c "CREATE EXTENSION IF NOT EXISTS vector;"
 
-#### Getting Current User
+- Migration order matters for vector columns: extension migration must run before migrations that use vector(1536)
 
-Use the `@CurrentUser()` decorator to access authenticated user data:
+## Useful Commands
 
-```typescript
-@Get('me')
-@UseGuards(ClerkGuard)
-getCurrentUser(@CurrentUser() auth: AuthObject) {
-  return {
-    userId: (auth as any).userId,
-    sessionId: (auth as any).sessionId,
-  };
-}
-```
+- Development
 
-### Testing Protected Routes
+  pnpm start:dev
 
-Send requests with a Bearer token in the `Authorization` header:
+- Build
 
-```bash
-curl http://localhost:3000/profile \
-  -H "Authorization: Bearer <clerk_jwt_token>"
-```
+  pnpm build
 
-## AI Integration with OpenRouter
+- Tests
 
-This project integrates [OpenRouter](https://openrouter.ai/) for AI-powered features, providing access to 300+ language models through a unified API.
+  pnpm test
+  pnpm test:e2e
 
-### Setup
+- Database
 
-Add your OpenRouter API key to `.env`:
+  pnpm prisma:generate
+  pnpm prisma:migrate --name <migration_name>
+  pnpm prisma:studio
+  pnpm exec prisma migrate reset --force
 
-```env
-OPENROUTER_API_KEY=sk-or-v1-...
+- Infra
 
-# Optional custom configurations
-APP_URL=http://localhost:5000
-APP_NAME=FounderSignal
-```
+  pnpm db:up
+  pnpm db:down
 
-### Default Model
+## Main Research Endpoints
 
-The application uses `stepfun/step-3.5-flash:free` as the default model, which is a free, fast model suitable for development and testing.
+- POST /research/jobs
+- GET /research/jobs/:id
+- POST /research/ideas
+- GET /research/ideas/:ideaId
+- GET /research/ideas/:ideaId/report
+- POST /research/test/pipeline
+- POST /research/test/queries
+- POST /research/test/scraper
+- POST /research/test/research-data/store
+- POST /research/test/research-data/prepare
 
-### Usage
+## Current Data Models (Prisma)
 
-#### Using OpenRouter Service
-
-Inject the `OpenrouterService` into your controllers or services:
-
-```typescript
-import { OpenrouterService } from './openrouter/openrouter.service';
-
-@Controller('ai')
-export class AiController {
-  constructor(private readonly openrouterService: OpenrouterService) {}
-
-  @Post('chat')
-  async chat(@Body() body: { prompt: string }) {
-    const response = await this.openrouterService.sendPrompt(body.prompt);
-    return { response };
-  }
-
-  @Post('advanced')
-  async advanced(@Body() body: { messages: any[]; model?: string }) {
-    const completion = await this.openrouterService.sendChatCompletion(
-      body.messages,
-      body.model,
-    );
-    return completion;
-  }
-}
-```
-
-#### Available Methods
-
-- `sendPrompt(prompt: string, model?: string)` - Send a simple text prompt
-- `sendChatCompletion(messages, model?, stream?)` - Send chat messages with full control
-- `getClient()` - Get the OpenRouter client for advanced usage
-
-### Testing AI Endpoints
-
-Example using the `/ai/chat` endpoint:
-
-```bash
-curl -X POST http://localhost:5000/ai/chat \
-  -H "Content-Type: application/json" \
-  -d '{"prompt": "Explain quantum computing in simple terms"}'
-```
-
-With a custom model:
-
-```bash
-curl -X POST http://localhost:5000/ai/chat \
-  -H "Content-Type: application/json" \
-  -d '{
-    "prompt": "Write a haiku about programming",
-    "model": "anthropic/claude-3-haiku"
-  }'
-```
-
-## Compile and run the project
-
-```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
-```
-
-## Run tests
-
-```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
-```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- User
+- Idea
+- ResearchData
+- Competitor
+- Problem
+- JobProgress
+- Insight
+- ResearchLead
+- ResearchInsights
+- MarketSignals
+- Lead
+
+## Notes for Contributors
+
+- Use Nest CLI scaffolding for Nest-supported artifacts
+- Keep error handling type-safe (error instanceof Error)
+- Preserve fallback behavior in AI-dependent services so pipeline execution continues
+- Avoid adding .env.example in this repository (project policy uses .env only)
