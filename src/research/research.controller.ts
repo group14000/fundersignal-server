@@ -48,16 +48,22 @@ export class ResearchController {
     return this.researchService.createIdeaWithJob(body, auth.userId);
   }
 
+  @UseGuards(ClerkGuard)
   @Get('ideas/:ideaId')
-  getIdea(@Param('ideaId') ideaId: string) {
-    return this.researchService.getIdea(ideaId);
+  getIdea(
+    @Param('ideaId') ideaId: string,
+    @CurrentUser() auth: { userId: string },
+  ) {
+    return this.researchService.getIdea(ideaId, auth.userId);
   }
 
+  @UseGuards(ClerkGuard)
   @Post('test/pipeline')
   async runFullPipelineTest(@Body() body: CreateIdeaDto) {
     return this.researchService.runFullPipelineTest(body);
   }
 
+  @UseGuards(ClerkGuard)
   @Post('test/queries')
   async testQueryGeneration(@Body() body: CreateIdeaDto) {
     const queries = await this.queryGeneration.generateQueries({
@@ -77,6 +83,7 @@ export class ResearchController {
     };
   }
 
+  @UseGuards(ClerkGuard)
   @Post('test/scraper')
   async testScraperService(@Body() body: TestScraperDto) {
     // Validate every caller-supplied URL against the domain allowlist (SSRF protection).
@@ -96,6 +103,7 @@ export class ResearchController {
     };
   }
 
+  @UseGuards(ClerkGuard)
   @Post('test/research-data/store')
   async testStoreResearchData(@Body() body: StoreResearchDataDto) {
     const summary = await this.researchDataService.storeScrapedContent(
@@ -109,6 +117,7 @@ export class ResearchController {
     };
   }
 
+  @UseGuards(ClerkGuard)
   @Post('test/research-data/prepare')
   async testPrepareResearchDataset(@Body() body: PrepareResearchDatasetDto) {
     return this.researchDataService.prepareDatasetForAnalysis(

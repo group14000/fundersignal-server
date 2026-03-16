@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bullmq';
 import { createHash } from 'crypto';
@@ -143,13 +143,17 @@ export class ResearchService {
     };
   }
 
-  async getIdea(ideaId: string) {
+  async getIdea(ideaId: string, userId: string) {
     const idea = await this.prisma.idea.findUnique({
       where: { id: ideaId },
     });
 
     if (!idea) {
       throw new NotFoundException(`Idea ${ideaId} not found`);
+    }
+
+    if (idea.user_id && idea.user_id !== userId) {
+      throw new ForbiddenException('You do not have access to this idea');
     }
 
     let jobProgress: any = null;
@@ -326,7 +330,7 @@ Market reports indicate strong demand and willingness to pay for solutions.`,
 
     // Step 5: Update job progress and queue analysis
     await this.prisma.jobProgress.update({
-      where: { job_id: jobId },
+      where: { job_id: jobId ?? undefined },
       data: {
         current_status: 'SCRAPING',
         progress_percentage: 50,

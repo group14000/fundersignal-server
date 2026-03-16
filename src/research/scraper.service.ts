@@ -72,30 +72,32 @@ export class ScraperService {
   async scrapeMultiple(
     searchResults: SearchResult[],
   ): Promise<ScrapedContent[]> {
-    const results: ScrapedContent[] = [];
-
-    // Limit to max URLs
     const urlsToScrape = searchResults.slice(0, this.MAX_URLS);
 
     this.logger.log(`Starting to scrape ${urlsToScrape.length} URLs`);
 
-    for (const result of urlsToScrape) {
-      try {
-        const content = await this.scrapeUrl(result.url, result.source);
-
-        results.push({
+    const settled = await Promise.allSettled(
+      urlsToScrape.map((result) =>
+        this.scrapeUrl(result.url, result.source).then((content) => ({
           ...result,
           content: content.trim(),
-        });
+        })),
+      ),
+    );
 
+    const results: ScrapedContent[] = [];
+    for (const [i, outcome] of settled.entries()) {
+      if (outcome.status === 'fulfilled') {
         this.logger.log(
-          `Successfully scraped: ${result.source} - ${result.url}`,
+          `Successfully scraped: ${urlsToScrape[i].source} - ${urlsToScrape[i].url}`,
         );
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        this.logger.warn(`Failed to scrape ${result.url}: ${errorMsg}`);
-        // Continue processing other URLs
-        continue;
+        results.push(outcome.value);
+      } else {
+        const msg =
+          outcome.reason instanceof Error
+            ? outcome.reason.message
+            : String(outcome.reason);
+        this.logger.warn(`Failed to scrape ${urlsToScrape[i].url}: ${msg}`);
       }
     }
 

@@ -49,6 +49,12 @@ export class AnalysisProcessor {
       // Save insights to database
       await this.analysisService.saveInsights(ideaId, insights, jobId);
 
+      // Mark idea as COMPLETED now that analysis has been saved
+      await this.prisma.idea.update({
+        where: { id: ideaId },
+        data: { status: 'COMPLETED' },
+      });
+
       // Update JobProgress to indicate completion
       if (jobId) {
         await this.prisma.jobProgress.update({

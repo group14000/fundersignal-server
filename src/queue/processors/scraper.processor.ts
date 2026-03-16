@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common';
-import { OnQueueFailed, Process, Processor } from '@nestjs/bull';
-import { Job } from 'bullmq';
+import { InjectQueue, OnQueueFailed, Process, Processor } from '@nestjs/bull';
+import { Job, Queue } from 'bullmq';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SearchOrchestratorService } from '../../research/search-orchestrator.service';
 import { ScraperService } from '../../research/scraper.service';
@@ -26,9 +26,10 @@ export class ScraperProcessor {
     private readonly searchOrchestrator: SearchOrchestratorService,
     private readonly scraperService: ScraperService,
     private readonly researchData: ResearchDataService,
+    @InjectQueue('analysis:tasks') private readonly analysisQueue: Queue,
   ) {}
 
-  @Process()
+  @Process({ concurrency: 4 })
   async handleScraping(job: Job<ScrapingJobData>) {
     const { ideaId, sourceType, title, keywords } = job.data;
 
@@ -100,7 +101,8 @@ export class ScraperProcessor {
 
   /**
    * Atomically increments jobs_completed for this idea and, if all scraping
-   * tasks are now done, transitions the idea to COMPLETED.
+   * tasks are now done, transitions the idea to COMPLETED and enqueues
+   * the analysis job.
    *
    * PostgreSQL's UPDATE … RETURNING guarantees each concurrent caller receives
    * the post-increment value from their own write. Only the worker whose
@@ -111,45 +113,62 @@ export class ScraperProcessor {
     ideaId: string,
     dataPointsCollected: number,
   ): Promise<void> {
-    const progress = await this.prisma.jobProgress.update({
-      where: { idea_id: ideaId },
-      data: {
-        jobs_completed: { increment: 1 },
-        data_points_collected: { increment: dataPointsCollected },
-      },
-      select: {
-        jobs_completed: true,
-        jobs_total: true,
-      },
-    });
+    try {
+      const progress = await this.prisma.jobProgress.update({
+        where: { idea_id: ideaId },
+        data: {
+          jobs_completed: { increment: 1 },
+          data_points_collected: { increment: dataPointsCollected },
+        },
+        select: {
+          job_id: true,
+          jobs_completed: true,
+          jobs_total: true,
+        },
+      });
 
-    if (progress.jobs_completed < progress.jobs_total) {
-      // Other scraping jobs are still running — nothing more to do here.
-      return;
+      if (progress.jobs_completed < progress.jobs_total) {
+        // Other scraping jobs are still running — nothing more to do here.
+        return;
+      }
+
+      this.logger.log(
+        `All scraping jobs completed for idea ${ideaId} ` +
+          `(${progress.jobs_completed}/${progress.jobs_total} sources done)`,
+      );
+
+      await this.prisma.idea.update({
+        where: { id: ideaId },
+        data: {
+          status: 'ANALYZING',
+          research_completed_at: new Date(),
+        },
+      });
+
+      await this.prisma.jobProgress.update({
+        where: { idea_id: ideaId },
+        data: {
+          current_status: 'ANALYZING',
+          progress_percentage: 60,
+          current_task: 'Analyzing research data',
+        },
+      });
+
+      // Enqueue analysis job now that all scraping is complete
+      await this.analysisQueue.add('analyze-research', {
+        ideaId,
+        jobId: progress.job_id,
+      });
+
+      this.logger.log(`Enqueued analyze-research job for idea ${ideaId}`);
+    } catch (error) {
+      // Isolate errors so a DB/queue failure here never crashes the parent
+      // finally block or causes the BullMQ job to be marked as failed.
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `markJobFinished failed for idea ${ideaId}: ${message}`,
+      );
     }
-
-    this.logger.log(
-      `All scraping jobs completed for idea ${ideaId} ` +
-        `(${progress.jobs_completed}/${progress.jobs_total} sources done)`,
-    );
-
-    await this.prisma.idea.update({
-      where: { id: ideaId },
-      data: {
-        status: 'COMPLETED',
-        research_completed_at: new Date(),
-      },
-    });
-
-    await this.prisma.jobProgress.update({
-      where: { idea_id: ideaId },
-      data: {
-        current_status: 'COMPLETED',
-        progress_percentage: 100,
-        current_task: 'Research complete',
-        completed_at: new Date(),
-      },
-    });
   }
 
   @OnQueueFailed()

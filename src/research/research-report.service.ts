@@ -74,7 +74,7 @@ export class ResearchReportService {
     }
 
     // 2. Ownership check — only the creator may view the report
-    if (idea.user_id && idea.user_id !== userId) {
+    if (!idea.user_id || idea.user_id !== userId) {
       throw new ForbiddenException('You do not have access to this report');
     }
 
