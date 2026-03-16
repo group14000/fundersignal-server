@@ -32,6 +32,7 @@ export class ResearchController {
     return this.researchService.enqueueResearchJob(body);
   }
 
+  @UseGuards(ClerkGuard)
   @Get('jobs/:id')
   getResearchJob(@Param('id') id: string) {
     return this.researchService.getResearchJob(id);
@@ -105,7 +106,13 @@ export class ResearchController {
 
   @UseGuards(ClerkGuard)
   @Post('test/research-data/store')
-  async testStoreResearchData(@Body() body: StoreResearchDataDto) {
+  async testStoreResearchData(
+    @Body() body: StoreResearchDataDto,
+    @CurrentUser() auth: { userId: string },
+  ) {
+    // Ownership check: throws 404 or ForbiddenException if access denied
+    await this.researchService.getIdea(body.ideaId, auth.userId);
+
     const summary = await this.researchDataService.storeScrapedContent(
       body.ideaId,
       body.entries,
@@ -119,7 +126,13 @@ export class ResearchController {
 
   @UseGuards(ClerkGuard)
   @Post('test/research-data/prepare')
-  async testPrepareResearchDataset(@Body() body: PrepareResearchDatasetDto) {
+  async testPrepareResearchDataset(
+    @Body() body: PrepareResearchDatasetDto,
+    @CurrentUser() auth: { userId: string },
+  ) {
+    // Ownership check: throws 404 or ForbiddenException if access denied
+    await this.researchService.getIdea(body.ideaId, auth.userId);
+
     return this.researchDataService.prepareDatasetForAnalysis(
       body.ideaId,
       body.limit,

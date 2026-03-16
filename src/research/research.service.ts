@@ -16,18 +16,9 @@ export class ResearchService {
   ) {}
 
   async enqueueResearchJob(input: StartResearchDto) {
-    const job = await this.researchQueue.add('start-research', {
-      title: input.title.trim(),
-      description: input.description?.trim() ?? null,
-      keywords: input.keywords ?? [],
-      createdAt: new Date().toISOString(),
-    });
-
-    return {
-      queue: 'research:main',
-      jobId: String(job.id),
-      state: await job.getState(),
-    };
+    // Delegate to the full idea-creation flow so the job payload always
+    // contains ideaId — ResearchMainProcessor requires it.
+    return this.createIdeaWithJob(input as CreateIdeaDto);
   }
 
   async getResearchJob(id: string) {
@@ -197,6 +188,16 @@ export class ResearchService {
   async runFullPipelineTest(input: CreateIdeaDto) {
     // Step 1: Create idea
     const ideaResponse = await this.createIdeaWithJob(input);
+
+    // If this idea already exists, skip re-populating it with test data
+    // to avoid corrupting a potentially completed analysis.
+    if ('duplicate' in ideaResponse && ideaResponse.duplicate) {
+      return {
+        ...ideaResponse,
+        message: 'Idea already analyzed; pipeline test skipped for existing idea',
+      };
+    }
+
     const ideaId = ideaResponse.idea.id;
     const jobId = ideaResponse.idea.jobId;
 

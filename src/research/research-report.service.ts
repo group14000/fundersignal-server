@@ -57,13 +57,12 @@ export class ResearchReportService {
         description: true,
         user_id: true,
         created_at: true,
-        research_insights: {
+        insights: {
           select: {
             demand_score: true,
-            problems: true,
-            competitors: true,
+            key_problems: true,
+            competitor_analysis: true,
             opportunity_summary: true,
-            created_at: true,
           },
         },
       },
@@ -79,32 +78,41 @@ export class ResearchReportService {
     }
 
     // 3. Insights not ready yet
-    if (!idea.research_insights) {
+    if (!idea.insights) {
       this.logger.log(
         `Insights not yet available for idea ${ideaId} — returning processing status`,
       );
       return { status: 'processing' };
     }
 
-    const ins = idea.research_insights;
+    const ins = idea.insights;
 
-    // 4. Parse JSON arrays stored as text
+    // 4. Parse JSON arrays/objects stored as text
     let problems: string[] = [];
     let competitors: string[] = [];
 
     try {
-      problems = JSON.parse(ins.problems);
+      problems = JSON.parse(ins.key_problems);
     } catch {
       this.logger.warn(
-        `Failed to parse problems JSON for idea ${ideaId} — defaulting to []`,
+        `Failed to parse key_problems JSON for idea ${ideaId} — defaulting to []`,
       );
     }
 
     try {
-      competitors = JSON.parse(ins.competitors);
+      const raw = JSON.parse(ins.competitor_analysis);
+      // competitor_analysis may be stored as an object { threats, opportunities }
+      // or as an array — normalise to string[]
+      if (Array.isArray(raw)) {
+        competitors = raw;
+      } else if (raw && typeof raw === 'object') {
+        competitors = [raw.threats, raw.opportunities].filter(
+          (v): v is string => typeof v === 'string' && v.length > 0,
+        );
+      }
     } catch {
       this.logger.warn(
-        `Failed to parse competitors JSON for idea ${ideaId} — defaulting to []`,
+        `Failed to parse competitor_analysis JSON for idea ${ideaId} — defaulting to []`,
       );
     }
 

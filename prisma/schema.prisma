@@ -76,6 +76,7 @@ model ResearchData {
   @@index([idea_id])
   @@index([source_type])
   @@index([processed])
+  @@unique([idea_id, source_url])
 }
 
 // Competitors identified from research

@@ -41,7 +41,10 @@ export class ResearchMainProcessor {
         },
       });
 
-      const sources = ['reddit', 'hackernews', 'producthunt', 'google'];
+      // Only fan out to sources the search orchestrator actually queries.
+      // producthunt and google have no connector yet; including them would
+      // run 2 extra jobs doing identical work and inflating jobs_total.
+      const sources = ['reddit', 'hackernews'] as const;
       const totalJobs = sources.length;
 
       // Record expected job count BEFORE enqueuing so ScraperProcessor

@@ -79,6 +79,7 @@ export class AppController {
     };
   }
 
+  @UseGuards(ClerkGuard)
   @Post('ai/chat')
   async chat(@Body() body: { prompt: string; model?: string }) {
     const response = await this.openrouterService.sendPrompt(

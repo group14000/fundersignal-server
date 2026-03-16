@@ -99,7 +99,25 @@ export class MarketSignalService {
         `Market signal detection failed for idea ${ideaId} (${message}), falling back to InsightAnalysisService`,
       );
 
-      return this.fallbackFromInsights(ideaId);
+      try {
+        return await this.fallbackFromInsights(ideaId);
+      } catch (fallbackError) {
+        const fallbackMessage =
+          fallbackError instanceof Error
+            ? fallbackError.message
+            : String(fallbackError);
+        this.logger.warn(
+          `Fallback signal detection also failed for idea ${ideaId}: ${fallbackMessage}`,
+        );
+        return {
+          ideaId,
+          signals: [],
+          opportunityAreas: [],
+          modelUsed: 'none',
+          storedSignalId: '',
+          fallbackUsed: true,
+        };
+      }
     }
   }
 

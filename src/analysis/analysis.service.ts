@@ -10,6 +10,7 @@ interface AnalysisResult {
   competitorAnalysis: Record<string, any>;
   opportunityGaps: string[];
   userSignals: Record<string, any>;
+  generationTimeMs: number;
 }
 
 export type { AnalysisResult };
@@ -52,7 +53,9 @@ export class AnalysisService {
 
     try {
       // Call OpenRouter to analyze
+      const startTime = Date.now();
       const analysisResult = await this.openrouter.sendPrompt(analysisPrompt);
+      const generationTimeMs = Date.now() - startTime;
 
       // Parse the response
       const insights = this.parseAnalysisResponse(analysisResult);
@@ -62,7 +65,7 @@ export class AnalysisService {
         marketReadiness: insights.marketReadiness,
       });
 
-      return insights;
+      return { ...insights, generationTimeMs };
     } catch (error) {
       this.logger.error(`Analysis failed for idea ${ideaId}`, error);
       throw error;
@@ -92,7 +95,7 @@ export class AnalysisService {
         opportunity_gaps: JSON.stringify(insights.opportunityGaps),
         user_signals: JSON.stringify(insights.userSignals),
         model_used: 'stepfun/step-3.5-flash:free',
-        generation_time_ms: Date.now(),
+        generation_time_ms: insights.generationTimeMs,
       };
 
       if (existingInsight) {
@@ -110,12 +113,11 @@ export class AnalysisService {
         });
       }
 
-      // Update idea with demand score
+      // Update idea with demand score — status transition is owned by the caller
       await this.prisma.idea.update({
         where: { id: ideaId },
         data: {
           demand_score: insights.demandScore,
-          status: 'COMPLETED',
         },
       });
 
@@ -247,6 +249,7 @@ ${topItems.map((item) => `- "${item.title || item.content.substring(0, 100)}" (S
           ? parsed.opportunityGaps
           : [],
         userSignals: parsed.userSignals || {},
+        generationTimeMs: 0, // placeholder — overwritten by analyzeResearchData
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -260,6 +263,7 @@ ${topItems.map((item) => `- "${item.title || item.content.substring(0, 100)}" (S
         competitorAnalysis: {},
         opportunityGaps: [],
         userSignals: {},
+        generationTimeMs: 0,
       };
     }
   }

@@ -86,6 +86,7 @@ pnpm start:dev
 - Docker uses `pgvector/pgvector:pg18-trixie` for the `postgres` service in `docker-compose.yml`.
 - pgvector is enabled via init script: `docker/init/01-pgvector.sql` (`CREATE EXTENSION IF NOT EXISTS vector;`).
 - Migration order matters for pgvector types: create extension before any migration that uses `vector(...)` columns.
+- Prisma shadow DB and `prisma migrate reset` can fail if the extension-creation migration is not replayed before migrations that use `vector(1536)` columns.
 - If a Postgres volume already exists, init scripts will not rerun. Enable manually once:
   `docker compose exec postgres psql -U postgres -d <db_name> -c "CREATE EXTENSION IF NOT EXISTS vector;"`
 
@@ -211,6 +212,7 @@ pnpm prisma:studio
 - **No .env.example files** - Only `.env` is required
 - Use PostgreSQL with Prisma adapter-pg
 - Migrations auto-tracked in `prisma/migrations/`
+- `ResearchData` now enforces `@@unique([idea_id, source_url])` to prevent duplicate source ingestion per idea.
 
 ## API Conventions
 
@@ -220,16 +222,16 @@ pnpm prisma:studio
 
 ### Research Endpoints
 ```
-POST   /research/jobs              # Enqueue research job
-GET    /research/jobs/:id          # Get job status
+POST   /research/jobs              # Creates idea + enqueues research job
+GET    /research/jobs/:id          # Get job status (auth required)
 POST   /research/ideas             # Create idea + auto-enqueue analysis
 GET    /research/ideas/:ideaId     # Retrieve idea with insights
 GET    /research/ideas/:ideaId/report  # Structured research report (auth required)
 POST   /research/test/pipeline     # Test full pipeline (dev)
 POST   /research/test/queries      # Test AI query generation (dev)
 POST   /research/test/scraper      # Test URL content extraction (dev)
-POST   /research/test/research-data/store    # Test data storage + dedup (dev)
-POST   /research/test/research-data/prepare  # Test analysis dataset prep (dev)
+POST   /research/test/research-data/store    # Test data storage + dedup (auth + ownership check)
+POST   /research/test/research-data/prepare  # Test analysis dataset prep (auth + ownership check)
 ```
 
 ### Current Research Pipeline
@@ -248,6 +250,7 @@ QueryGenerationService
 
 `ResearchAgentService` orchestrates up to 3 iterative cycles and runs final insight analysis at the end.
 `LeadDiscoveryService` is implemented and exported, but automatic invocation in the agent/queue pipeline is still integration-dependent.
+`ResearchService.enqueueResearchJob()` delegates to the idea-creation flow so queued jobs always have `ideaId` in their payload.
 
 ### Response Format
 All endpoints use:
@@ -337,8 +340,15 @@ protectedRoute(@CurrentUser() auth: AuthObject) {
 
 ### Current Status
 - Guard is enforced on `GET /research/ideas/:ideaId/report`
-- Most other `/research` endpoints remain unguarded for dev/test workflows
+- Guard is enforced on `GET /research/jobs/:id`
+- Guard is enforced on `POST /research/test/research-data/store` and `POST /research/test/research-data/prepare`, with idea ownership validation
+- Some `/research` endpoints remain unguarded for dev/test workflows
 - Report access is restricted to the idea owner
+
+### Recent Behavior Notes
+- `ResearchMainProcessor` only fans out to `reddit` and `hackernews`; `producthunt` and `google` are not active connectors yet.
+- `LeadDiscoveryService` preserves previously discovered leads when a later run returns zero leads.
+- `MarketSignalService` now returns an empty signal set if both primary detection and fallback insight analysis fail, instead of throwing.
 
 ## Testing
 

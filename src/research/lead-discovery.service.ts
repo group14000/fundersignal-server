@@ -284,7 +284,7 @@ Rules:
     leads: DiscoveredLead[],
   ): Promise<number> {
     if (leads.length === 0) {
-      await this.prisma.lead.deleteMany({ where: { idea_id: ideaId } });
+      // Nothing to store — preserve any leads that were previously discovered.
       return 0;
     }
 
