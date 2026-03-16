@@ -1,0 +1,8 @@
+allowBuilds:
+  '@clerk/shared': true
+  '@nestjs/core': true
+  '@openrouter/sdk': true
+  '@prisma/engines': true
+  msgpackr-extract: true
+  prisma: true
+  unrs-resolver: true
